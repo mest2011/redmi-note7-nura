@@ -36,7 +36,13 @@ PulseAudio:
 | UCM do 7.2 pelo PulseAudio | perfil `HiFi (Mic, Speaker)`, caixa como saída padrão |
 | Caixa → chamada → caixa | -43 / -72 / -43 dB, também com o som já tocando |
 | GPU | 0 erros em 16 min de boot, com 10 min de Chromium abrindo e fechando |
+| UCM do 7.2 depois de reiniciar | o PulseAudio sobe sozinho com ele, no perfil `HiFi (Mic, Speaker)` |
 | Partições do MIUI | `boot` e `recovery` com hash igual antes e depois |
+
+**GPU com o Brave:** no segundo boot apareceram 2 `gpu fault` aos 199 s, com o Brave apontado como
+`offending task`. O kernel recuperou a GPU (`hangcheck recover`), e a interface continuou
+respondendo, sem processo preso. Não é o freeze corrigido pelos patches, que travava a tela. A
+causa não foi investigada, e não sei se acontece também no 7.0.14.
 
 Medições com o microfone de um notebook ao lado do celular, comparando a faixa de 500 Hz. São
 comparativas.
@@ -149,6 +155,5 @@ pactl list cards | grep 'Active Profile'
 O esperado é `HiFi (Mic, Speaker)`. Para voltar ao UCM do sistema, apague o arquivo em
 `~/.config/environment.d/` e reinicie.
 
-O teste com o PulseAudio foi feito apontando `ALSA_CONFIG_UCM2` para essa pasta. A configuração
-pelo `environment.d` foi criada no aparelho, mas ainda falta confirmar que ela sobrevive a um
-reinício.
+Testado no aparelho: depois de reiniciar, o PulseAudio subiu com essa pasta, no perfil
+`HiFi (Mic, Speaker)`, com a caixa como saída padrão e o serviço `redmi-audio-reabrir` ativo.

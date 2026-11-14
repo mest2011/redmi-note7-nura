@@ -21,6 +21,8 @@ commit não.
 - **[sdm660-mainline](https://github.com/sdm660-mainline):** o kernel mainline do SDM660
   (tag `v7.0.14-sdm660`), o U-Boot que sobe o Nura pela `recovery` (`v2026.10-sdm660`) e o
   `alsa-ucm-conf` do SDM660. Obrigado aos mantenedores e contribuidores.
+- **Nickolay Goppen**, pelo branch `upstream-sm8250` do `alsa-ucm-conf` do sdm660-mainline, que
+  adapta o UCM aos nomes do kernel 7.2. A saída `Speaker` do 7.2 foi escrita sobre ele.
 - **Árvore do Redmi Note 6 Pro (`tulip`)** no sdm660-mainline: serviu de modelo para a
   ligação `PRI_MI2S`, os pinos e o regulador do amplificador.
 - **[Nura](https://nura.eco)** (ex-postmarketOS): o sistema, o `pmbootstrap` e o

@@ -1,0 +1,7 @@
+# Dumps e backups do aparelho têm IMEI, MAC, serial e blobs proprietários.
+dumps/
+backup*/
+*.img
+*.img.gz
+*.apk
+*.tgz

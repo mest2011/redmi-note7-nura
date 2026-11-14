@@ -1,0 +1,444 @@
+diff -urN a/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi b/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi
+--- a/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi	2026-11-04 23:14:36
++++ b/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi	2026-11-05 00:21:02
+@@ -141,6 +141,18 @@
+ 	memory-region = <&zap_shader_region>;
+ };
+ 
++&blsp_i2c6 {
++	status = "okay";
++
++	max98937: audio-codec@3a {
++		compatible = "maxim,max98937";
++		reg = <0x3a>;
++		#sound-dai-cells = <0>;
++
++		reset-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
++	};
++};
++
+ &blsp1_uart2 {
+ 	status = "okay";
+ };
+@@ -286,6 +298,11 @@
+ };
+ 
+ &q6afedai {
++	dai@16 {
++		reg = <PRIMARY_MI2S_RX>;
++		qcom,sd-lines = <0>;
++	};
++
+ 	dai@81 {
+ 		reg = <INT0_MI2S_RX>;
+ 		qcom,sd-lines = <0 1>;
+@@ -404,6 +421,14 @@
+ 			regulator-allow-set-load;
+ 		};
+ 
++		/* Alimenta o MAX98937, cujo driver nao pede regulador. */
++		vreg_l6b_1p8: l6 {
++			regulator-min-microvolt = <1800000>;
++			regulator-max-microvolt = <1800000>;
++			regulator-enable-ramp-delay = <250>;
++			regulator-always-on;
++		};
++
+ 		vreg_l7b_3p125: l7 {
+ 			regulator-min-microvolt = <2700000>;
+ 			regulator-max-microvolt = <3125000>;
+@@ -619,7 +644,8 @@
+ 	model = "Xiaomi Redmi Note 7";
+ 
+ 	pinctrl-0 = <&cdc_pdm_default>,
+-			<&cdc_dmic_default>;
++			<&cdc_dmic_default>,
++			<&pri_mi2s_active>;
+ 	pinctrl-names = "default";
+ 
+ 	audio-routing = "PDM_RX1", "Digital PDM_RX1",
+@@ -662,6 +688,22 @@
+ 		};
+ 	};
+ 
++	pri-mi2s-dai-link {
++		link-name = "Primary MI2S Playback";
++
++		cpu {
++			sound-dai = <&q6afedai PRIMARY_MI2S_RX>;
++		};
++
++		platform {
++			sound-dai = <&q6routing>;
++		};
++
++		codec {
++			sound-dai = <&max98937>;
++		};
++	};
++
+ 	int3-mi2s-dai-link {
+ 		link-name = "Internal MI2S Capture";
+ 
+@@ -682,6 +724,29 @@
+ 
+ &tlmm {
+ 	gpio-reserved-ranges = <8 4>;
++
++	pri_mi2s_active: pri-mi2s-active-state {
++		sck-pins {
++			pins = "gpio12";
++			function = "pri_mi2s";
++			drive-strength = <8>;
++			bias-disable;
++		};
++
++		ws-pins {
++			pins = "gpio13";
++			function = "pri_mi2s_ws";
++			drive-strength = <8>;
++			bias-disable;
++		};
++
++		data-pins {
++			pins = "gpio14", "gpio15";
++			function = "pri_mi2s";
++			drive-strength = <8>;
++			bias-disable;
++		};
++	};
+ 
+ 	mdss_dsi_active: mdss-dsi-active-state {
+ 		function = "gpio";
+diff -urN a/sound/soc/codecs/Kconfig b/sound/soc/codecs/Kconfig
+--- a/sound/soc/codecs/Kconfig	2026-11-05 00:20:43
++++ b/sound/soc/codecs/Kconfig	2026-11-05 00:20:43
+@@ -1426,6 +1426,11 @@
+ 	tristate
+ 	depends on I2C
+ 
++config SND_SOC_MAX98937
++	tristate "Maxim Integrated MAX98937 Speaker Amplifier"
++	depends on I2C
++	select REGMAP_I2C
++
+ config SND_SOC_MAX98927
+ 	tristate "Maxim Integrated MAX98927 Speaker Amplifier"
+ 	depends on I2C
+diff -urN a/sound/soc/codecs/Makefile b/sound/soc/codecs/Makefile
+--- a/sound/soc/codecs/Makefile	2026-11-05 00:20:43
++++ b/sound/soc/codecs/Makefile	2026-11-05 00:20:43
+@@ -173,6 +173,7 @@
+ snd-soc-max98925-y := max98925.o
+ snd-soc-max98926-y := max98926.o
+ snd-soc-max98927-y := max98927.o
++snd-soc-max98937-y := max98937.o
+ snd-soc-max98520-y := max98520.o
+ snd-soc-max98363-y := max98363.o
+ snd-soc-max98373-y := max98373.o
+@@ -605,6 +606,7 @@
+ obj-$(CONFIG_SND_SOC_MAX98925)	+= snd-soc-max98925.o
+ obj-$(CONFIG_SND_SOC_MAX98926)	+= snd-soc-max98926.o
+ obj-$(CONFIG_SND_SOC_MAX98927)	+= snd-soc-max98927.o
++obj-$(CONFIG_SND_SOC_MAX98937)	+= snd-soc-max98937.o
+ obj-$(CONFIG_SND_SOC_MAX98520)	+= snd-soc-max98520.o
+ obj-$(CONFIG_SND_SOC_MAX98363)	+= snd-soc-max98363.o
+ obj-$(CONFIG_SND_SOC_MAX98373)	+= snd-soc-max98373.o
+diff -urN a/sound/soc/codecs/max98937.c b/sound/soc/codecs/max98937.c
+--- a/sound/soc/codecs/max98937.c	1969-12-31 21:00:00
++++ b/sound/soc/codecs/max98937.c	2026-11-05 00:20:43
+@@ -0,0 +1,278 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * Driver minimo do amplificador MAX98937 do Xiaomi Redmi Note 7 (lavender).
++ *
++ * O MAX98937 tem um mapa de registradores diferente do MAX98927. A tabela de
++ * inicializacao vem do driver GPL da Xiaomi (techpack/audio/asoc/codecs/max98937.c).
++ * Sem a protecao DSM do Android, o ganho inicial e o "safe gain" da Xiaomi.
++ */
++#include <linux/delay.h>
++#include <linux/gpio/consumer.h>
++#include <linux/i2c.h>
++#include <linux/module.h>
++#include <linux/of.h>
++#include <linux/regmap.h>
++#include <sound/pcm.h>
++#include <sound/pcm_params.h>
++#include <sound/soc.h>
++#include <sound/tlv.h>
++
++#define MAX98937_PCM_MODE	0x0023
++#define MAX98937_PCM_CLK	0x0025
++#define MAX98937_PCM_SR1	0x0026
++#define MAX98937_PCM_SR2	0x0027
++#define MAX98937_AMP_VOL	0x0036
++#define MAX98937_AMP_EN		0x0039
++#define MAX98937_SPK_GAIN	0x003b
++#define MAX98937_GLOBAL_EN	0x0500
++#define MAX98937_REV_ID		0x0600
++
++struct max98937_priv {
++	struct regmap *regmap;
++	struct gpio_desc *reset;
++};
++
++static const struct reg_sequence max98937_init[] = {
++	{ 0x0040, 0x01 },	/* Boost_Control_3 */
++	{ 0x001e, 0x01 },	/* PCM_Tx_DOUT_Control_1 */
++	{ 0x0018, 0x03 },	/* PCM_Rx_Enables_A */
++	{ 0x001a, 0x00 },	/* PCM_Tx_Enables_A */
++	{ 0x001c, 0xff },	/* PCM_Tx_HiZ_Control_A */
++	{ 0x0028, 0x80 },	/* PCM_to_speaker_monomix_A */
++	{ 0x0029, 0x01 },	/* PCM_to_speaker_monomix_B */
++	{ 0x0011, 0x03 },	/* Clock_monitor_enable */
++	{ 0x0053, 0x00 },	/* Brownout_level_infinite_hold */
++	{ 0x0055, 0x00 },	/* Brownout_level_hold */
++	{ 0x005e, 0x16 },	/* Brownout__level_1_current_limit */
++	{ 0x005f, 0x00 },	/* Brownout__level_1_amp_1_control_1 */
++	{ 0x0060, 0x0c },	/* Brownout__level_1_amp_1_control_2 */
++	{ 0x0061, 0x0c },	/* Brownout__level_1_amp_1_control_3 */
++	{ 0x0062, 0x12 },	/* Brownout__level_2_current_limit */
++	{ 0x0063, 0x00 },	/* Brownout__level_2_amp_1_control_1 */
++	{ 0x0064, 0x0c },	/* Brownout__level_2_amp_1_control_2 */
++	{ 0x0065, 0x0c },	/* Brownout__level_2_amp_1_control_3 */
++	{ 0x0066, 0x0e },	/* Brownout__level_3_current_limit */
++	{ 0x0067, 0x03 },	/* Brownout__level_3_amp_1_control_1 */
++	{ 0x0068, 0x18 },	/* Brownout__level_3_amp_1_control_2 */
++	{ 0x0069, 0x18 },	/* Brownout__level_3_amp_1_control_3 */
++	{ 0x006a, 0x0a },	/* Brownout__level_4_current_limit */
++	{ 0x006b, 0x00 },	/* Brownout__level_4_amp_1_control_1 */
++	{ 0x006c, 0x80 },	/* Brownout__level_4_amp_1_control_2 */
++	{ 0x006d, 0x00 },	/* Brownout__level_4_amp_1_control_3 */
++	{ 0x005a, 0x00 },	/* Brownout_threshold_hysterysis */
++	{ 0x005b, 0x00 },	/* Brownout_AMP_limiter_attack_release */
++	{ 0x005c, 0x1f },	/* Brownout_AMP_gain_attack_release */
++	{ 0x005d, 0x00 },	/* Brownout_AMP1_clip_mode */
++	{ 0x0042, 0x07 },	/* Meas_ADC_Config */
++	{ 0x0014, 0x75 },	/* Meas_ADC_Thermal_Warning_Threshhold */
++	{ 0x0015, 0x8c },	/* Meas_ADC_Thermal_Shutdown_Threshhold */
++	{ 0x0017, 0x55 },	/* Pin_Config */
++	{ 0x003e, 0xF7 },	/* Measurement_DSP_Config */
++	{ 0x0023, 0x40 },	/* PCM_Mode_Config */
++	{ 0x003a, 0x00 },	/* Speaker_source_select */
++	{ 0x001b, 0x00 },	/* PCM_Tx_Enables_B */
++	{ 0x0019, 0x00 },	/* PCM_Rx_Enables_B */
++	{ 0x001f, 0x03 },	/* PCM_Tx_DOUT_Control_2 */
++	{ 0x001d, 0xFF },	/* PCM_Tx_HiZ_Control_B */
++	{ 0x003d, 0x00 },	/* Measurement_enables */
++	{ 0x0035, 0x00 },	/* PDM_Rx_Enable */
++	{ 0x0036, 0x2c },	/* AMP_volume_control */
++	{ 0x0037, 0x0f },	/* AMP_DSP_Config */
++	{ 0x003b, 0x51 },	/* Speaker_Gain */
++	{ 0x003c, 0x85 },	/* SSM_Configuration */
++	{ 0x003f, 0x1c },	/* Boost_Control_0 */
++	{ 0x0041, 0x40 },	/* Boost_Control_1 */
++	{ 0x0043, 0x00 },	/* Meas_ADC_Base_Divide_MSByte */
++	{ 0x0044, 0xFF },	/* Meas_ADC_Base_Divide_LSByte */
++	{ 0x0016, 0x08 },	/* Meas_ADC_Thermal_Hysteresis */
++	{ 0x0073, 0x0f },	/* Env_Tracker_Vout_Headroom */
++	{ 0x0077, 0x01 },	/* Env_Tracker_Control */
++	{ 0x0052, 0x02 },	/* Brownout_enables */
++	{ 0x0020, 0x00 },	/* PCM_STATUS_WORD_CONFIG_0 */
++	{ 0x0021, 0x00 },	/* PCM_STATUS_WORD_CONFIG_1 */
++	{ 0x0022, 0x00 },	/* PCM_STATUS_WORD_CONFIG_2 */
++	{ 0x004e, 0x10 },	/* Squelch */
++	{ 0x0079, 0x45 },	/* Boost_Bypass_1 */
++	{ 0x007a, 0x2B },	/* Boost_Bypass_2 */
++	{ 0x007b, 0x04 },	/* Boost_Bypass_3 */
++};
++
++static int max98937_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
++{
++	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC)
++		return -EINVAL;
++	if ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) != SND_SOC_DAIFMT_I2S)
++		return -EINVAL;
++	if ((fmt & SND_SOC_DAIFMT_INV_MASK) != SND_SOC_DAIFMT_NB_NF)
++		return -EINVAL;
++	return 0;
++}
++
++static int max98937_hw_params(struct snd_pcm_substream *substream,
++			      struct snd_pcm_hw_params *params,
++			      struct snd_soc_dai *dai)
++{
++	struct max98937_priv *p = snd_soc_component_get_drvdata(dai->component);
++	unsigned int width = snd_pcm_format_width(params_format(params));
++	unsigned int chansz, bsel, sr;
++
++	switch (width) {
++	case 16: chansz = 1; bsel = 2; break;
++	case 24: chansz = 2; bsel = 3; break;
++	case 32: chansz = 3; bsel = 4; break;
++	default: return -EINVAL;
++	}
++
++	switch (params_rate(params)) {
++	case 8000: sr = 0; break;
++	case 11025: sr = 1; break;
++	case 12000: sr = 2; break;
++	case 16000: sr = 3; break;
++	case 22050: sr = 4; break;
++	case 24000: sr = 5; break;
++	case 32000: sr = 6; break;
++	case 44100: sr = 7; break;
++	case 48000: sr = 8; break;
++	default: return -EINVAL;
++	}
++
++	regmap_update_bits(p->regmap, MAX98937_PCM_MODE, 0xc0, chansz << 6);
++	regmap_update_bits(p->regmap, MAX98937_PCM_CLK, 0x0f, bsel);
++	regmap_update_bits(p->regmap, MAX98937_PCM_SR1, 0x0f, sr);
++	regmap_update_bits(p->regmap, MAX98937_PCM_SR2, 0xf0, sr << 4);
++	return 0;
++}
++
++static int max98937_mute(struct snd_soc_dai *dai, int mute, int stream)
++{
++	struct max98937_priv *p = snd_soc_component_get_drvdata(dai->component);
++
++	if (mute) {
++		regmap_update_bits(p->regmap, MAX98937_GLOBAL_EN, 1, 0);
++		regmap_update_bits(p->regmap, MAX98937_AMP_EN, 1, 0);
++	} else {
++		regmap_update_bits(p->regmap, MAX98937_AMP_EN, 1, 1);
++		regmap_update_bits(p->regmap, MAX98937_GLOBAL_EN, 1, 1);
++	}
++	return 0;
++}
++
++static const struct snd_soc_dai_ops max98937_dai_ops = {
++	.set_fmt = max98937_set_fmt,
++	.hw_params = max98937_hw_params,
++	.mute_stream = max98937_mute,
++	.no_capture_mute = 1,
++};
++
++static struct snd_soc_dai_driver max98937_dai = {
++	.name = "max98937-aif1",
++	.playback = {
++		.stream_name = "HiFi Playback",
++		.channels_min = 1,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_8000_48000,
++		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE |
++			   SNDRV_PCM_FMTBIT_S32_LE,
++	},
++	.ops = &max98937_dai_ops,
++};
++
++static const DECLARE_TLV_DB_SCALE(max98937_spk_tlv, 300, 300, 0);
++static const DECLARE_TLV_DB_SCALE(max98937_dig_tlv, -1600, 25, 0);
++
++/* Maximos iguais aos valores que o Android usa com a protecao DSM ligada. */
++static const struct snd_kcontrol_new max98937_controls[] = {
++	SOC_SINGLE_TLV("Speaker Volume", MAX98937_SPK_GAIN, 0, 5, 0, max98937_spk_tlv),
++	SOC_SINGLE_TLV("Digital Volume", MAX98937_AMP_VOL, 0, 56, 0, max98937_dig_tlv),
++};
++
++static const struct snd_soc_dapm_widget max98937_widgets[] = {
++	SND_SOC_DAPM_DAC("Amp", "HiFi Playback", SND_SOC_NOPM, 0, 0),
++	SND_SOC_DAPM_OUTPUT("BE_OUT"),
++};
++
++static const struct snd_soc_dapm_route max98937_routes[] = {
++	{ "BE_OUT", NULL, "Amp" },
++};
++
++static const struct snd_soc_component_driver max98937_component = {
++	.controls = max98937_controls,
++	.num_controls = ARRAY_SIZE(max98937_controls),
++	.dapm_widgets = max98937_widgets,
++	.num_dapm_widgets = ARRAY_SIZE(max98937_widgets),
++	.dapm_routes = max98937_routes,
++	.num_dapm_routes = ARRAY_SIZE(max98937_routes),
++	.idle_bias_on = 1,
++	.use_pmdown_time = 1,
++	.endianness = 1,
++};
++
++static const struct regmap_config max98937_regmap = {
++	.reg_bits = 16,
++	.val_bits = 8,
++	.max_register = MAX98937_REV_ID,
++	.cache_type = REGCACHE_NONE,
++};
++
++static int max98937_probe(struct i2c_client *i2c)
++{
++	struct device *dev = &i2c->dev;
++	struct max98937_priv *p;
++	unsigned int rev;
++	int ret;
++
++	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
++	if (!p)
++		return -ENOMEM;
++	i2c_set_clientdata(i2c, p);
++
++	p->regmap = devm_regmap_init_i2c(i2c, &max98937_regmap);
++	if (IS_ERR(p->regmap))
++		return PTR_ERR(p->regmap);
++
++	p->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
++	if (IS_ERR(p->reset))
++		return dev_err_probe(dev, PTR_ERR(p->reset), "reset\n");
++	if (p->reset) {
++		gpiod_set_value_cansleep(p->reset, 0);
++		usleep_range(5000, 6000);
++	}
++
++	ret = regmap_read(p->regmap, MAX98937_REV_ID, &rev);
++	if (ret)
++		return dev_err_probe(dev, ret, "falha ao ler a revisao\n");
++	if (!(rev & 0x40))
++		return dev_err_probe(dev, -ENODEV, "revisao inesperada 0x%02x\n", rev);
++	dev_info(dev, "MAX98937 revisao 0x%02x\n", rev);
++
++	ret = regmap_multi_reg_write(p->regmap, max98937_init, ARRAY_SIZE(max98937_init));
++	if (ret)
++		return ret;
++
++	return devm_snd_soc_register_component(dev, &max98937_component, &max98937_dai, 1);
++}
++
++static const struct of_device_id max98937_of_match[] = {
++	{ .compatible = "maxim,max98937" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, max98937_of_match);
++
++static const struct i2c_device_id max98937_id[] = {
++	{ "max98937" },
++	{ }
++};
++MODULE_DEVICE_TABLE(i2c, max98937_id);
++
++static struct i2c_driver max98937_driver = {
++	.driver = {
++		.name = "max98937",
++		.of_match_table = max98937_of_match,
++	},
++	.probe = max98937_probe,
++	.id_table = max98937_id,
++};
++module_i2c_driver(max98937_driver);
++
++MODULE_DESCRIPTION("Driver minimo do MAX98937");
++MODULE_LICENSE("GPL");
+diff -urN a/sound/soc/qcom/sdm660-internal.c b/sound/soc/qcom/sdm660-internal.c
+--- a/sound/soc/qcom/sdm660-internal.c	2026-11-04 23:14:36
++++ b/sound/soc/qcom/sdm660-internal.c	2026-11-05 00:21:02
+@@ -125,6 +125,12 @@
+ 		/* AFE drives the I2S bit/frame clock for the external amp. */
+ 		snd_soc_dai_set_fmt(cpu, SND_SOC_DAIFMT_CBP_CFP);
+ 
++		/* The external amp is clock consumer; tell it the I2S format. */
++		for_each_rtd_codec_dais(rtd, i, codec)
++			snd_soc_dai_set_fmt(codec, SND_SOC_DAIFMT_I2S |
++					    SND_SOC_DAIFMT_NB_NF |
++					    SND_SOC_DAIFMT_CBC_CFC);
++
+ 		break;
+ 	default:
+ 		dev_err(cpu->dev, "unimplemented afe dai\n");

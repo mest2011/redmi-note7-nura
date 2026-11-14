@@ -1,0 +1,78 @@
+diff --git a/device/testing/alsa-ucm-conf-qcom-sdm660/APKBUILD b/device/testing/alsa-ucm-conf-qcom-sdm660/APKBUILD
+index defffd7..f05e2e4 100644
+--- a/device/testing/alsa-ucm-conf-qcom-sdm660/APKBUILD
++++ b/device/testing/alsa-ucm-conf-qcom-sdm660/APKBUILD
+@@ -1,15 +1,18 @@
+ maintainer="Nickolay Goppen <setotau@mainlining.org>"
+ pkgname=alsa-ucm-conf-qcom-sdm660
+ pkgver=1.2.15_git20260721
+-pkgrel=1
++pkgrel=3
+ _commit="8cfa1a20c94eede091596a293163fa5f9b4e3c12"
+ pkgdesc="ALSA UCM configuration for SDM660 devices"
+ url="https://github.com/sdm660-mainline/alsa-ucm-conf"
+ arch="aarch64"
+ license="BSD-3-Clause"
+ provides="alsa-ucm-conf=0.${pkgver%_*}-r$pkgrel" # versioned provides need to be below default version
+-source="$pkgname-$_commit.tar.gz::https://github.com/sdm660-mainline/alsa-ucm-conf/archive/$_commit.tar.gz"
++source="$pkgname-$_commit.tar.gz::https://github.com/sdm660-mainline/alsa-ucm-conf/archive/$_commit.tar.gz
++	0001-lavender-saida-speaker.patch
++	"
+ options="!check"
++builddir="$srcdir/alsa-ucm-conf-$_commit"
+ 
+ package() {
+ 	# install audio config files
+@@ -19,4 +22,5 @@ package() {
+ 
+ sha512sums="
+ 8467ff6ea6b645f57d0ecf661942d9dcc1050c47744c1c98e1955c311795ddc7b1a6efd2fc4698395770343ca1ae163ec68fee9a7a943af7aa13cb08ec468f97  alsa-ucm-conf-qcom-sdm660-8cfa1a20c94eede091596a293163fa5f9b4e3c12.tar.gz
++46ba0644e4760a20bb3d2ddb551d5547ab70d4b58376e1c5d88f4587a74f6950c58439cc65d2cd883642d978c1a565e523e474bc2e3d59f7d1352385c355c950  0001-lavender-saida-speaker.patch
+ "
+diff --git a/device/testing/linux-postmarketos-qcom-sdm660/APKBUILD b/device/testing/linux-postmarketos-qcom-sdm660/APKBUILD
+index ebff2a6..46af96a 100644
+--- a/device/testing/linux-postmarketos-qcom-sdm660/APKBUILD
++++ b/device/testing/linux-postmarketos-qcom-sdm660/APKBUILD
+@@ -3,7 +3,7 @@ maintainer="Barnabas Czeman <barnabas.czeman@postmarketos.org>"
+ _flavor="postmarketos-qcom-sdm660"
+ pkgname=linux-$_flavor
+ pkgver=7.0.14
+-pkgrel=2
++pkgrel=5
+ pkgdesc="Close to mainline linux kernel for Qualcomm Snapdragon 660 SoC"
+ arch="aarch64"
+ url="https://kernel.org/"
+@@ -35,6 +35,10 @@ _tag="v$pkgver-sdm660"
+ source="
+ 	linux-$_tag.tar.gz::https://github.com/sdm660-mainline/linux/archive/refs/tags/$_tag.tar.gz
+ 	config-$_flavor.aarch64
++	0001-lavender-alto-falante-max98937.patch
++	0002-a5xx-reset-ao-retomar.patch
++	0003-a5xx-latencia-cpu.patch
++	0004-a5xx-wptr-sob-trava.patch
+ "
+ 
+ _carch="arm64"
+@@ -90,5 +94,9 @@ package() {
+ 
+ sha512sums="
+ 83f7e717b8adc9049e828a27629e7347be2fa0aef6c8404608059410cebaafa0c2659317b615634fbd5d83f9a245bcf1a64e5d2cd0d8e3ec8aeaa3dcf0e51298  linux-v7.0.14-sdm660.tar.gz
+-400934adb4b2beeaeabf39c236df81925fcdf8067024787f7d3da3f8b250d2afe3291ef6479e90abd5453b5c2275589519427845568206428d27f4585f16fcf3  config-postmarketos-qcom-sdm660.aarch64
++5902e77dee79baa1a8ad8f8cb941e7a7771f4608208c4eb3ab5256d8c69ce4300c7dcea44bf101106304b41264e4f13a86e0298a9cd3b4e076e06a529d17e12b  config-postmarketos-qcom-sdm660.aarch64
++a4341ff0103c693f9524ae1e6315218857f52a6ddb8c8e0c5fc39525e3bb131356d1385134ffa8512e02452e337611f32732c46fbdaf10d3c6ec22c6375f3701  0001-lavender-alto-falante-max98937.patch
++94b5e609a62c8be6f90d2ce67ad1308d2e98d44fe26f5d4b8418c5e1d9c5b83fea136405b6df3c9cd598f7a0acac5ea29d62b71b08d5be2b9895cb7c6b090754  0002-a5xx-reset-ao-retomar.patch
++62c2dbcefe191a5d3559ce38bcc092d0da78161da6e0c3837d09c93016839bc62835a49f6f24fa6e9a75951f15fc61db2f7bef56d22a4e7899b7ff75d0e68747  0003-a5xx-latencia-cpu.patch
++71d532fcc2e81ac7cf6a485e9dadfd8c7c8036305f31777dc341757e3b0181403b64c022c25443205cde7ea472fb7a2049253671b4b5930e84d58c0fa44baeaf  0004-a5xx-wptr-sob-trava.patch
+ "
+diff --git a/device/testing/linux-postmarketos-qcom-sdm660/config-postmarketos-qcom-sdm660.aarch64 b/device/testing/linux-postmarketos-qcom-sdm660/config-postmarketos-qcom-sdm660.aarch64
+index 8ef29d3..f31aedb 100644
+--- a/device/testing/linux-postmarketos-qcom-sdm660/config-postmarketos-qcom-sdm660.aarch64
++++ b/device/testing/linux-postmarketos-qcom-sdm660/config-postmarketos-qcom-sdm660.aarch64
+@@ -4579,6 +4579,7 @@ CONFIG_SND_SOC_HDMI_CODEC=m
+ # CONFIG_SND_SOC_MAX98504 is not set
+ # CONFIG_SND_SOC_MAX9867 is not set
+ # CONFIG_SND_SOC_MAX98927 is not set
++CONFIG_SND_SOC_MAX98937=m
+ # CONFIG_SND_SOC_MAX98520 is not set
+ # CONFIG_SND_SOC_MAX98363 is not set
+ # CONFIG_SND_SOC_MAX98373_I2C is not set

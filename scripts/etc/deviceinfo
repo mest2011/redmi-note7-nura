@@ -1,0 +1,4 @@
+# /etc/deviceinfo no Nura do lavender em dual boot.
+# Impede que instalar ou atualizar o kernel grave o boot.img do Nura na
+# partição boot do MIUI (ver docs/dual-boot.md, "Incidente").
+deviceinfo_flash_kernel_on_update="false"

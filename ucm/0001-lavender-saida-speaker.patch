@@ -1,0 +1,52 @@
+diff -urN a/ucm2/Xiaomi/lavender/HiFi.conf b/ucm2/Xiaomi/lavender/HiFi.conf
+--- a/ucm2/Xiaomi/lavender/HiFi.conf	2026-11-04 23:16:13
++++ b/ucm2/Xiaomi/lavender/HiFi.conf	2026-11-05 00:46:20
+@@ -28,6 +28,7 @@
+ 	]
+ 
+ 	ConflictingDevices [
++		"Speaker"
+ 		"Headphones"
+ 	]
+ 
+@@ -78,6 +79,7 @@
+ 	]
+ 
+ 	ConflictingDevices [
++		"Speaker"
+ 		"Earpiece"
+ 	]
+ 
+@@ -111,5 +113,32 @@
+ 		CapturePriority 200
+ 		CaptureChannels 1
+ 		JackControl "Headset Jack"
++	}
++}
++
++# O q6routing guarda uma so porta por sessao, e desligar qualquer rota da
++# sessao a deixa sem porta. Por isso fica sempre uma rota ligada: INT0 no verbo,
++# trocada por PRI enquanto a caixa estiver ativa.
++SectionDevice."Speaker" {
++	Comment "Built-in Speaker"
++
++	EnableSequence [
++		cset "name='INT0_MI2S_RX Audio Mixer MultiMedia1' 0"
++		cset "name='PRI_MI2S_RX Audio Mixer MultiMedia1' 1"
++	]
++
++	DisableSequence [
++		cset "name='PRI_MI2S_RX Audio Mixer MultiMedia1' 0"
++		cset "name='INT0_MI2S_RX Audio Mixer MultiMedia1' 1"
++	]
++
++	ConflictingDevices [
++		"Earpiece"
++		"Headphones"
++	]
++
++	Value {
++		PlaybackPCM "hw:${CardId},0"
++		PlaybackPriority 150
+ 	}
+ }

@@ -1,0 +1,10 @@
+[Unit]
+Description=Reabre a saida de audio do Redmi Note 7 ao trocar de perfil
+
+[Service]
+ExecStart=/usr/local/bin/redmi-audio-reabrir
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

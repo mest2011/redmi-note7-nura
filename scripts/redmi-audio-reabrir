@@ -1,0 +1,27 @@
+#!/bin/sh
+# O DSP do sdm660 so aplica a rota ao abrir o PCM. Quando o perfil muda com a saida
+# aberta, a rota nova fica sem efeito ate reabrir. Este servico reabre a saida.
+#
+# LC_ALL=C: na sessao em portugues o pactl traduz "Active Profile".
+export LC_ALL=C
+
+perfil() {
+	pactl list cards 2>/dev/null | awk -F': ' '/Active Profile/{print $2; exit}'
+}
+
+ultimo=$(perfil)
+while :; do
+	sleep 1
+	atual=$(perfil)
+	[ -z "$atual" ] && continue
+	[ "$atual" = "$ultimo" ] && continue
+	ultimo=$atual
+	echo "perfil: $atual"
+	sleep 0.5
+	pactl list sinks short | awk '$2 ~ /^alsa_/{print $2}' | while read -r saida; do
+		echo "reabrindo $saida"
+		pactl suspend-sink "$saida" 1
+		sleep 0.2
+		pactl suspend-sink "$saida" 0
+	done
+done

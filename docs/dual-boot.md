@@ -22,7 +22,9 @@ ABL (Xiaomi)
 
 ## Pré-requisitos
 
-- Bootloader desbloqueado. No aparelho testado ele já vinha `unlocked:yes`, estado `orange`.
+- Bootloader desbloqueado. No aparelho testado ele já estava `unlocked:yes`, estado `orange`,
+  desde uma tentativa anterior com ROM custom (desbloqueio pelo Mi Unlock, com um chip comprado
+  só para vincular à Mi Account; ver a Etapa 1 do README).
 - Saber a variante do painel (`mdss_mdp.panel=` na linha de comando do kernel do MIUI).
   O aparelho testado é Shenchao, NT36672A.
 - Um backup completo das partições **antes** de qualquer gravação, com hash.

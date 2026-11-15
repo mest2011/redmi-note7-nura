@@ -1,6 +1,9 @@
 #!/bin/bash
 # Kernel 7.2.y do sdm660-mainline com o driver da caixa, na config do Nura.
 # Uso: KSRC=<checkout do kernel> T=<pasta de trabalho> ./build-nura.sh
+# Serve para a proposta atual do PR 262 (MAX98937 pelo driver max98927) e para a
+# v1 (driver max98937 próprio): liga as duas opções, e o olddefconfig descarta a
+# que não existe no checkout.
 set -eo pipefail
 KSRC=${KSRC:?defina KSRC com o checkout do sdm660-mainline/linux (branch do PR 262)}
 cd "$KSRC"
@@ -19,15 +22,15 @@ while IFS== read -r k v; do
   cur=$(grep -E "^$k=" $O/.config | cut -d= -f2- || true)
   if [ -z "$cur" ]; then ./scripts/config --file $O/.config --set-val "${k#CONFIG_}" "$v"; n=$((n+1)); echo "add $k=$v"; fi
 done < <(grep -E "^CONFIG_[A-Z0-9_]+=(y|m)$" $B/.config)
-./scripts/config --file $O/.config -m SND_SOC_MAX98937 -m SND_SOC_SM8250 -d LOCALVERSION_AUTO --set-str LOCALVERSION "-sdm660"
+./scripts/config --file $O/.config -m SND_SOC_MAX98927 -m SND_SOC_MAX98937 -m SND_SOC_SM8250 -d LOCALVERSION_AUTO --set-str LOCALVERSION "-sdm660"
 $M O=$O olddefconfig
 echo "opções somadas: $n"
-grep -E "^CONFIG_(SND_SOC_MAX98937|SND_SOC_SM8250|LOCALVERSION|MMC_SDHCI_MSM|MODULE_COMPRESS_ZSTD|DRM_MSM)=" $O/.config
+grep -E "^CONFIG_(SND_SOC_MAX989[23]7|SND_SOC_SM8250|LOCALVERSION|MMC_SDHCI_MSM|MODULE_COMPRESS_ZSTD|DRM_MSM)=" $O/.config
 $M O=$O kernelrelease
 $M O=$O Image.gz modules qcom/sdm660-xiaomi-lavender-shenchao.dtb
 rm -rf $T/stage && $M O=$O INSTALL_MOD_PATH=$T/stage INSTALL_MOD_STRIP=1 modules_install
 cp $O/arch/arm64/boot/Image.gz $T/vmlinuz-7.2
 cp $O/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-shenchao.dtb $T/sdm660-xiaomi-lavender-shenchao-7.2.dtb
 ls -la $T/vmlinuz-7.2 $T/*.dtb; ls $T/stage/lib/modules/
-find $T/stage -name "snd-soc-max98937*"
+find $T/stage -name "snd-soc-max989[23]7*"
 echo BUILD_NURA_OK

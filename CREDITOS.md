@@ -22,7 +22,12 @@ commit não.
   (tag `v7.0.14-sdm660`), o U-Boot que sobe o Nura pela `recovery` (`v2026.10-sdm660`) e o
   `alsa-ucm-conf` do SDM660. Obrigado aos mantenedores e contribuidores.
 - **Nickolay Goppen**, pelo branch `upstream-sm8250` do `alsa-ucm-conf` do sdm660-mainline, que
-  adapta o UCM aos nomes do kernel 7.2. A saída `Speaker` do 7.2 foi escrita sobre ele.
+  adapta o UCM aos nomes do kernel 7.2 e hoje está no `master`. A saída `Speaker` do 7.2 foi
+  escrita sobre ele.
+- **Franco Ortiz** ([Pakvothe](https://github.com/Pakvothe)), pelo mapa de registradores do
+  MAX98937 dentro do driver `max98927` (branch
+  [`lavender-7.2.y`](https://github.com/Pakvothe/linux/tree/lavender-7.2.y)). A proposta da
+  caixa para o 7.2 usa os patches dele, com a autoria mantida.
 - **Árvore do Redmi Note 6 Pro (`tulip`)** no sdm660-mainline: serviu de modelo para a
   ligação `PRI_MI2S`, os pinos e o regulador do amplificador.
 - **[Nura](https://nura.eco)** (ex-postmarketOS): o sistema, o `pmbootstrap` e o

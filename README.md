@@ -9,8 +9,9 @@ Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a 
 
 > **English summary.** Patches and a step-by-step guide to run Nura (formerly postmarketOS)
 > on the Xiaomi Redmi Note 7 (lavender, SDM660), dual-booting with MIUI through U-Boot in the
-> `recovery` partition. Adds a minimal MAX98937 speaker amp driver plus the lavender DT and
-> UCM bits (the stock `max98927` driver probes but stays silent), and carries three
+> `recovery` partition. Adds MAX98937 speaker support: a minimal driver for the packaged
+> 7.0.14 kernel and, for 7.2.y upstream, Franco Ortiz's translated register map in the
+> `max98927` driver, plus the lavender DT and UCM bits. It also carries three
 > `FROMLIST` Adreno 5xx patches by Fabricio Akio that fix GPU hangs. Built with AI
 > assistance (Claude) and tested on one device. See [CREDITOS.md](CREDITOS.md).
 
@@ -19,7 +20,7 @@ Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a 
 | Item | Estado |
 | --- | --- |
 | Dual boot | MIUI liga normal; `adb reboot recovery` abre o U-Boot, que sobe o Nura do cartão SD |
-| Caixa principal (MAX98937) | toca e é a saída padrão, com o driver deste repositório |
+| Caixa principal (MAX98937) | toca e é a saída padrão: no 7.0.14 com o driver mínimo deste repositório, no 7.2 com o `max98927` |
 | Freeze da GPU (Adreno 512) | corrigido com 3 patches do fork: 30 min de carga sem erro |
 | Wi-Fi | funciona, só em 2,4 GHz |
 | Docker nativo | roda com overlayfs e cgroup v2 |
@@ -30,9 +31,11 @@ Testado num aparelho só: variante Shenchao (painel NT36672A), 4 GB, MIUI 12.5.1
 kernel `7.0.14-sdm660`. O kernel `7.2.3` do fork também foi testado, com o driver da caixa:
 ver [`docs/kernel-7.2.md`](docs/kernel-7.2.md).
 
-O driver da caixa foi proposto ao sdm660-mainline em
-[linux#262](https://github.com/sdm660-mainline/linux/pull/262) e
-[alsa-ucm-conf#11](https://github.com/sdm660-mainline/alsa-ucm-conf/pull/11).
+A caixa foi proposta ao sdm660-mainline para o 7.2 em
+[linux#262](https://github.com/sdm660-mainline/linux/pull/262), pelo driver `max98927`, e em
+[alsa-ucm-conf#13](https://github.com/sdm660-mainline/alsa-ucm-conf/pull/13). O
+[alsa-ucm-conf#11](https://github.com/sdm660-mainline/alsa-ucm-conf/pull/11), para o 7.0.14,
+foi fechado.
 
 ---
 

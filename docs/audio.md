@@ -9,7 +9,7 @@ amplificador da caixa. Com eles, a caixa toca e é a saída padrão.
 | --- | --- |
 | Amplificador | **MAX98937**, não MAX98927, TAS2557 nem TFA9894 |
 | Ligação | `i2c@c1b6000` (`blsp_i2c6`), endereço `0x3a`, reset no GPIO 77, porta `PRI_MI2S_RX` |
-| Alimentação | regulador `L6B`, 1,8 V |
+| Alimentação | o patch do 7.0.14 liga o regulador `L6B` (1,8 V), como o tulip faz; no 7.2 a caixa tocou com o `L6B` desligado, e a proposta atual não o usa |
 | Prova | log `max98937` no MIUI e revisão `0x43` no registrador `0x600`, lida igual no Nura |
 
 Sinais que enganam:
@@ -17,7 +17,8 @@ Sinais que enganam:
 - O DTB do MIUI declara `tas2557@4c`, `tfa98xx@34` e `max98927@3a`. Só o último tem driver
   ligado, e mesmo o nome `max98927L` está errado.
 - O MAX98937 tem outro mapa de registradores. O driver `max98927` do kernel carrega, liga
-  tudo e fica mudo, com a revisão lida como `0x00`.
+  tudo e fica mudo, com a revisão lida como `0x00`. Com o mapa traduzido de Franco Ortiz, o
+  próprio `max98927` passa a funcionar (ver abaixo).
 
 Registradores no MIUI com a caixa tocando, para comparar: `0x500=01`, `0x039=81`,
 `0x023=40`, `0x025=42`, `0x026=08`, `0x027=88`, `0x018=03`. Com `tinyplay` direto no MIUI o
@@ -40,6 +41,17 @@ saída `Speaker`, com prioridade 150: acima da de chamada, abaixo do fone. O `q6
 guarda uma porta por sessão, e desligar uma rota deixa a sessão sem porta
 (`Routing not setup`). Por isso fica sempre uma rota ligada: `INT0`, trocada por `PRI`
 enquanto a caixa estiver ativa.
+
+## No 7.2: o driver `max98927`
+
+Na revisão do [linux#262](https://github.com/sdm660-mainline/linux/pull/262), os mantenedores
+preferiram não ter um driver novo. Na proposta atual, o MAX98937 passa pelo `max98927`:
+- Franco Ortiz escreveu um regmap que traduz os endereços do MAX98927 para os do MAX98937.
+- O tipo do chip vem de um enum nas tabelas de match.
+- O reset fica 1 ms em nível baixo antes de soltar, como no driver da Xiaomi.
+
+Os pacotes do 7.0.14 deste repositório continuam com o driver mínimo. Testes e instruções
+em [`kernel-7.2.md`](kernel-7.2.md).
 
 ## Serviço da troca de saída
 
@@ -78,6 +90,10 @@ sudo alsactl store
 ```
 
 No Android, o DSM protege a caixa. Sem ele, suba o ganho aos poucos.
+
+No 7.2, com o `max98927`, os controles vão até `6` e `127`, acima do MIUI. Confira o
+`Speaker Volume` depois de trocar de driver: a inicialização genérica do `alsactl` o põe no
+máximo.
 
 ## Dicas
 

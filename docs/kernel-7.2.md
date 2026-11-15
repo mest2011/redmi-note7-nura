@@ -1,14 +1,18 @@
 # Kernel 7.2 do sdm660-mainline no Redmi Note 7
 
 O Nura ainda empacota o kernel `7.0.14`. O fork sdm660-mainline já está no `7.2.y` (branch
-`qcom-sdm660-7.2.y`), e os 3 patches da GPU já vêm nele. O driver da caixa foi portado para lá e
-proposto aos mantenedores:
+`qcom-sdm660-7.2.y`), e os 3 patches da GPU já vêm nele. A caixa foi proposta aos mantenedores
+para o 7.2:
 
 | O quê | Onde |
 | --- | --- |
-| Driver MAX98937, binding, árvore do lavender e defconfig | [sdm660-mainline/linux#262](https://github.com/sdm660-mainline/linux/pull/262) |
-| Saída `Speaker` no UCM, para o kernel 7.0.14 (`master`) | [sdm660-mainline/alsa-ucm-conf#11](https://github.com/sdm660-mainline/alsa-ucm-conf/pull/11) |
-| A mesma saída para o 7.2, sobre o branch `setotau/upstream-sm8250` | branch [`lavender-speaker-lpi`](https://github.com/mest2011/alsa-ucm-conf/tree/lavender-speaker-lpi) |
+| MAX98937 pelo driver `max98927` (mapa de registradores de Franco Ortiz), binding, árvore do lavender e defconfig | [sdm660-mainline/linux#262](https://github.com/sdm660-mainline/linux/pull/262), branch [`lavender-max98937`](https://github.com/mest2011/linux/tree/lavender-max98937) |
+| Saída `Speaker` no UCM, sobre o `master` (nomes `LPI_MI2S`) | [sdm660-mainline/alsa-ucm-conf#13](https://github.com/sdm660-mainline/alsa-ucm-conf/pull/13), branch [`lavender-speaker-lpi`](https://github.com/mest2011/alsa-ucm-conf/tree/lavender-speaker-lpi) |
+| Versão anterior do kernel, com o driver `max98937` próprio | branch [`lavender-max98937-v1`](https://github.com/mest2011/linux/tree/lavender-max98937-v1) |
+
+Na revisão, os mantenedores preferiram não ter um driver novo, e a proposta passou a usar o
+`max98927`. O `alsa-ucm-conf#11`, a saída `Speaker` para o 7.0.14, foi fechado porque o
+sdm660-mainline não mantém mais o 7.0.y.
 
 Este guia é para quem quer testar o 7.2 antes de ele chegar ao Nura. Não há pacote pronto:
 você compila o kernel.
@@ -18,15 +22,17 @@ você compila o kernel.
 - **A placa de som** é a do `sm8250.c` e se apresenta com o driver `sdm660`. O UCM do sistema só
   conhece `sdm660-internal`, então o PulseAudio cai no perfil genérico `stereo-fallback`.
 - **As portas internas** mudaram de nome: `INT0_MI2S_RX` virou `LPI_MI2S_RX_0`, e `INT3_MI2S_TX`
-  virou `LPI_MI2S_TX_3`. O branch `setotau/upstream-sm8250` do `alsa-ucm-conf`, do mantenedor,
-  já usa os nomes novos e tem `conf.d/sdm660`.
+  virou `LPI_MI2S_TX_3`. Desde 15/11/2026 o `master` do `alsa-ucm-conf` do sdm660-mainline usa
+  os nomes novos e tem `conf.d/sdm660`.
 - **O formato I2S do amplificador** já é informado pelo `sm8250.c`. O trecho do
   `sdm660-internal.c` do patch do 7.0.14 não é mais necessário.
 
-## Testado (14/11/2026)
+## Testado
 
-Aparelho Shenchao, 4 GB, kernel `7.2.3-sdm660` deste procedimento, Nura edge, Phosh e
-PulseAudio:
+### Kernel da v1, com o driver `max98937` (14/11/2026)
+
+Aparelho Shenchao, 4 GB, kernel `7.2.3-sdm660` deste procedimento, compilado do branch
+`lavender-max98937-v1`, Nura edge, Phosh e PulseAudio:
 
 | Teste | Resultado |
 | --- | --- |
@@ -47,6 +53,35 @@ causa não foi investigada, e não sei se acontece também no 7.0.14.
 Medições com o microfone de um notebook ao lado do celular, comparando a faixa de 500 Hz. São
 comparativas.
 
+### Proposta atual, com o driver `max98927` (15/11/2026)
+
+O módulo `snd-soc-max98927` da proposta atual foi compilado para esse mesmo kernel e testado
+de dois jeitos: trocado a quente pelo driver da v1, e carregado no boot com o da v1 bloqueado.
+
+| Teste | Resultado |
+| --- | --- |
+| Driver | o `max98927` liga ao chip (revisão `0x43`), e a placa sobe na primeira tentativa |
+| Caixa | -36 a -38 dB a 500 Hz, igual ao driver da v1 no mesmo ganho (ruído de -68 a -75 dB) |
+| `Speaker Volume` 5 → 1 e `Digital Volume` 48 → 24 | o tom cai 12 dB e 6 dB |
+| Caixa → chamada → caixa | -38 / -70 / -38 dB |
+| Alimentação | com o L6B desligado pelo kernel, a caixa toca: a proposta atual não usa o L6B |
+| Reset (GPIO 77) no boot | antes do driver, entrada em nível baixo com pull-down: o chip já começa em reset |
+
+**Não testado:** um kernel compilado do branch inteiro da proposta atual. Os dois testes usaram
+o módulo novo com o kernel e a árvore da v1, que só diferem no `vdd-supply` do amplificador.
+
+**Ganho depois de trocar de driver:** no primeiro boot com outro driver, o `alsactl` não
+reconhece o estado salvo e usa a inicialização genérica. Ela põe o `Speaker Volume` no máximo do
+controle: 6 no `max98927`, um passo acima do que o Android usa. Volte para 5:
+
+```bash
+amixer -c0 cset name='Speaker Volume' 5
+```
+
+```bash
+sudo alsactl store
+```
+
 **Não testado no 7.2:** uso por horas, fone P2, microfone, bateria e suspensão.
 
 ## Como compilar
@@ -56,6 +91,10 @@ Num PC com Linux, com `clang`, `lld` e as dependências normais de compilar kern
 ```bash
 git clone --depth 30 --branch lavender-max98937 https://github.com/mest2011/linux.git
 ```
+
+Esse é o branch do PR, com a proposta atual, e pode mudar com a revisão. Para a v1, com o
+driver próprio e o boot completo testado, use `--branch lavender-max98937-v1`. O
+`build-nura.sh` serve para os dois.
 
 Copie do Nura 7.0.14 a config e o initramfs atuais para uma pasta de trabalho:
 
@@ -137,6 +176,9 @@ mexer no sistema e sem ser desfeito por `apk upgrade`:
 ```bash
 git clone --branch lavender-speaker-lpi https://github.com/mest2011/alsa-ucm-conf.git ucm-7.2
 ```
+
+O branch é o `master` do sdm660-mainline com a saída `Speaker`, o mesmo do
+`alsa-ucm-conf#13`.
 
 ```bash
 mkdir -p ~/.local/share && cp -r ucm-7.2/ucm2 ~/.local/share/ucm2-lavender-7.2

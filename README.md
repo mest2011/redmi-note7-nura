@@ -75,8 +75,12 @@ fastboot getvar unlocked
 
 `unlocked: yes` quer dizer desbloqueado. Se vier `no`, use o **Mi Unlock** oficial
 da Xiaomi (Windows, conta Mi vinculada ao aparelho em *Opções do desenvolvedor → Status do Mi
-Unlock*, com espera de alguns dias). O aparelho testado aqui já veio desbloqueado; esta etapa
-não foi refeita para este tutorial.
+Unlock*, com espera de alguns dias). A Mi Account precisa de um número de telefone vinculado.
+
+No aparelho testado, o desbloqueio veio antes deste projeto, numa tentativa de instalar uma ROM
+custom. Alternativas fora do fluxo da Xiaomi não funcionaram: foi preciso comprar um chip físico,
+criar a Mi Account, vincular esse número novo e só então desbloquear pelo Mi Unlock. Os passos do
+Mi Unlock em si não foram registrados para este tutorial.
 
 ### Etapa 2: descobrir a variante da tela
 

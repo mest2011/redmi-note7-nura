@@ -84,6 +84,12 @@ sudo alsactl store
 
 **Não testado no 7.2:** uso por horas, fone P2, microfone, bateria e suspensão.
 
+## Wi-Fi no 7.2
+
+Sem patch, o firmware do Wi-Fi derruba o modem a cada desconexão, e a rede só volta desligando
+e ligando o Wi-Fi. A correção e os testes estão em [`wifi.md`](wifi.md). O patch fica em
+[`kernel-7.2/`](../kernel-7.2/) e não faz parte do kernel descrito em "Testado" acima.
+
 ## Como compilar
 
 Num PC com Linux, com `clang`, `lld` e as dependências normais de compilar kernel:

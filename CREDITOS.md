@@ -2,7 +2,8 @@
 
 Este repositório junta trabalho de muita gente. O que é deste repositório é pouco: o
 driver mínimo do MAX98937, as ligações na árvore do lavender, a saída `Speaker` do UCM,
-o serviço de troca de saída e a documentação. O resto vem dos projetos abaixo.
+o serviço de troca de saída, o patch do Wi-Fi para o 7.2 e a documentação. O resto vem dos
+projetos abaixo.
 
 ## Patches de terceiros incluídos
 
@@ -28,6 +29,10 @@ commit não.
   MAX98937 dentro do driver `max98927` (branch
   [`lavender-7.2.y`](https://github.com/Pakvothe/linux/tree/lavender-7.2.y)). A proposta da
   caixa para o 7.2 usa os patches dele, com a autoria mantida.
+- **SudosuBash**, pelo comentário na issue
+  [sdm660-mainline/linux#243](https://github.com/sdm660-mainline/linux/issues/243) que aponta
+  o TXBF zerado depois do `vdev down` como causa de queda do firmware do WCN3990. O patch do
+  Wi-Fi parte dessa pista.
 - **Árvore do Redmi Note 6 Pro (`tulip`)** no sdm660-mainline: serviu de modelo para a
   ligação `PRI_MI2S`, os pinos e o regulador do amplificador.
 - **[Nura](https://nura.eco)** (ex-postmarketOS): o sistema, o `pmbootstrap` e o

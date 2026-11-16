@@ -2,8 +2,8 @@
 
 Este repositório junta trabalho de muita gente. O que é deste repositório é pouco: o
 driver mínimo do MAX98937, as ligações na árvore do lavender, a saída `Speaker` do UCM,
-o serviço de troca de saída, o patch do Wi-Fi para o 7.2 e a documentação. O resto vem dos
-projetos abaixo.
+o serviço de troca de saída, o patch `0001` do Wi-Fi para o 7.2 e a documentação. O resto vem
+dos projetos abaixo.
 
 ## Patches de terceiros incluídos
 
@@ -33,6 +33,12 @@ commit não.
   [sdm660-mainline/linux#243](https://github.com/sdm660-mainline/linux/issues/243) que aponta
   o TXBF zerado depois do `vdev down` como causa de queda do firmware do WCN3990. O patch do
   Wi-Fi parte dessa pista.
+- **Shunsuke Nagashima**, pela série
+  ["wifi: ath10k: WCN3990 station fixes for PMF and failed connections"](https://lkml.iu.edu/2610.1/19749.html):
+  foi ele quem achou que, sem a flag de PMF no peer, o firmware do WCN3990 não agrega quadros.
+  O `kernel-7.2/0002` é a correção do patch 1/3 dele, adaptada para não mudar o formato da
+  `struct ath10k`. O projeto [ROCKNIX](https://github.com/ROCKNIX/distribution/pull/3613)
+  documentou o mesmo sintoma.
 - **Árvore do Redmi Note 6 Pro (`tulip`)** no sdm660-mainline: serviu de modelo para a
   ligação `PRI_MI2S`, os pinos e o regulador do amplificador.
 - **[Nura](https://nura.eco)** (ex-postmarketOS): o sistema, o `pmbootstrap` e o

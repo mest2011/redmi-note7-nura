@@ -1,0 +1,48 @@
+ath10k: set the PMF peer flag on WCN3990
+
+For the sdm660-mainline 7.2.y kernel (tested on v7.2.3-sdm660, Xiaomi Redmi
+Note 7 "lavender", WCN3990 firmware "qmi fw_version 0x101a832b", build
+2020-12-21).
+
+ath10k sets the PMF flag in the peer assoc command only when firmware-5.bin
+advertises ATH10K_FW_FEATURE_MFP_SUPPORT ("mfp"). The WCN3990 firmware-5.bin
+does not, while mac80211 negotiates PMF with WPA3 and WPA2/WPA3 transition
+APs. Without the flag the firmware sends ADDBA Requests unprotected, no
+Block Ack agreement is set up and every frame goes out on its own: the
+firmware counters showed 37639 MPDUs in 39584 PPDUs, and TCP throughput on
+a 5 GHz 80 MHz VHT-MCS 9 link was 17-24 Mbit/s down and 37-55 Mbit/s up.
+With the flag it is 233-242 Mbit/s down and 230-241 Mbit/s up.
+
+This is the fix of patch 1/3 of Shunsuke Nagashima's series "wifi: ath10k:
+WCN3990 station fixes for PMF and failed connections"
+(https://lkml.iu.edu/2610.1/19751.html), which was tested on WLAN.HL.2.0.
+It is adapted here: the original adds a hw_params field; this version tests
+ar->hw_rev instead, so that struct ath10k keeps its layout and only
+ath10k_core.ko has to be replaced on an installed kernel. Prefer the
+original series when building a whole kernel.
+
+Apply after 0001, with: git apply kernel-7.2/0002-ath10k-wcn3990-flag-pmf-no-peer.patch
+---
+diff --git a/drivers/net/wireless/ath/ath10k/mac.c b/drivers/net/wireless/ath/ath10k/mac.c
+index 0558041e3..59955f314 100644
+--- a/drivers/net/wireless/ath/ath10k/mac.c
++++ b/drivers/net/wireless/ath/ath10k/mac.c
+@@ -2255,9 +2255,16 @@ static void ath10k_peer_assoc_h_crypto(struct ath10k *ar,
+ 		arg->peer_flags |= ar->wmi.peer_flags->need_gtk_2_way;
+ 	}
+ 
++	/* The WCN3990 firmware handles PMF for a peer that has the PMF peer
++	 * flag, although its firmware-5.bin does not advertise
++	 * ATH10K_FW_FEATURE_MFP_SUPPORT. Without the flag it sends ADDBA
++	 * Requests unprotected on PMF connections and no Block Ack agreement
++	 * is set up, so nothing is aggregated.
++	 */
+ 	if (sta->mfp &&
+-	    test_bit(ATH10K_FW_FEATURE_MFP_SUPPORT,
+-		     ar->running_fw->fw_file.fw_features)) {
++	    (test_bit(ATH10K_FW_FEATURE_MFP_SUPPORT,
++		      ar->running_fw->fw_file.fw_features) ||
++	     ar->hw_rev == ATH10K_HW_WCN3990)) {
+ 		arg->peer_flags |= ar->wmi.peer_flags->pmf;
+ 	}
+ }

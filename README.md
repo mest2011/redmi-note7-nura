@@ -4,7 +4,8 @@ Patches, scripts e um tutorial completo para usar o Nura (ex-postmarketOS) no Re
 (lavender, Snapdragon 660) em dual boot com o MIUI. O MIUI continua ligando normal; o Nura
 sobe de um cartão SD quando você pede. Este repositório também corrige duas coisas que
 faltavam: a caixa de som principal, que ficava muda, e a interface, que congelava. Para o
-kernel 7.2 há ainda um patch do Wi-Fi, que derrubava o modem a cada desconexão.
+kernel 7.2 há ainda dois patches do Wi-Fi: o modem caía a cada desconexão, e a velocidade
+ficava em cerca de 20 Mbit/s em redes WPA3.
 
 Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a Xiaomi.
 
@@ -14,9 +15,11 @@ Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a 
 > 7.0.14 kernel and, for 7.2.y upstream, Franco Ortiz's translated register map in the
 > `max98927` driver, plus the lavender DT and UCM bits. It also carries three
 > `FROMLIST` Adreno 5xx patches by Fabricio Akio that fix GPU hangs. Built with AI
-> assistance (Claude) and tested on one device. For the 7.2.y kernel there is also an ath10k
-> patch: the WCN3990 firmware crashed the modem on every Wi-Fi disconnect (TXBF vdev param
-> written after `VDEV_DOWN`), see [`docs/wifi.md`](docs/wifi.md). See [CREDITOS.md](CREDITOS.md).
+> assistance (Claude) and tested on one device. For the 7.2.y kernel there are also two ath10k
+> patches: the WCN3990 firmware crashed the modem on every Wi-Fi disconnect (TXBF vdev param
+> written after `VDEV_DOWN`), and throughput was about 20 Mbit/s on PMF (WPA3) networks
+> because the PMF peer flag was never set, so no A-MPDU aggregation (17-24 to 233-242 Mbit/s
+> down). See [`docs/wifi.md`](docs/wifi.md) and [CREDITOS.md](CREDITOS.md).
 
 ## Estado (novembro de 2026)
 
@@ -25,7 +28,7 @@ Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a 
 | Dual boot | MIUI liga normal; `adb reboot recovery` abre o U-Boot, que sobe o Nura do cartão SD |
 | Caixa principal (MAX98937) | toca e é a saída padrão: no 7.0.14 com o driver mínimo deste repositório, no 7.2 com o `max98927` |
 | Freeze da GPU (Adreno 512) | corrigido com 3 patches do fork: 30 min de carga sem erro |
-| Wi-Fi | funciona; no 7.0.14 só em 2,4 GHz, no 7.2.3 também em 5 GHz. Sem o patch do 7.2, o modem cai a cada desconexão e a rede não volta sozinha: ver [`docs/wifi.md`](docs/wifi.md) |
+| Wi-Fi | conecta em 2,4 e 5 GHz. Sem os patches do 7.2, o modem cai a cada desconexão (a rede não volta sozinha) e a velocidade fica em cerca de 20 Mbit/s em redes WPA3; com eles, 0 quedas e 230 a 240 Mbit/s em 5 GHz: ver [`docs/wifi.md`](docs/wifi.md) |
 | Docker nativo | roda com overlayfs e cgroup v2 |
 | Sem suporte no Nura | dados móveis, chamadas, câmera, GPS e OTG |
 
@@ -383,9 +386,9 @@ O máximo é `5` e `56`, os valores do MIUI. Sem DSM, suba aos poucos.
 
 - **Ir para o Nura:** `adb reboot recovery` no MIUI.
 - **Voltar ao MIUI:** reiniciar o Nura. Depois de uma queda de energia o aparelho liga no MIUI.
-- **Wi-Fi:** no 7.0.14, só redes de 2,4 GHz. Perder o sinal ou trocar de roteador derruba o
-  modem, e a rede só volta desligando e ligando o Wi-Fi. No 7.2 isso tem correção:
-  [`docs/wifi.md`](docs/wifi.md).
+- **Wi-Fi:** no 7.0.14, perder o sinal ou trocar de roteador derruba o modem, e a rede só
+  volta desligando e ligando o Wi-Fi. Em redes WPA3 ou WPA2/WPA3 ele é lento, perto de
+  20 Mbit/s. No 7.2 os dois têm correção: [`docs/wifi.md`](docs/wifi.md).
 - **Apps sumidos no Phosh:** o filtro adaptativo esconde apps sem `X-Purism-FormFactor`. Copie o
   `.desktop` para `~/.local/share/applications/` e acrescente
   `X-Purism-FormFactor=Workstation;Mobile;`.
@@ -415,6 +418,7 @@ espere uma release nova aqui. A proteção da Etapa 8 precisa continuar em `/etc
 | MIUI não liga depois de instalar um kernel no Nura | o kernel foi gravado na `boot`. No fastboot, regrave a `boot` do backup (a com Magisk) e crie a proteção da Etapa 8 |
 | Nura não liga depois de mexer no `/boot` | ligue no MIUI e corrija o cartão com root (abaixo) |
 | Wi-Fi cai e só volta desligando e ligando | o firmware do Wi-Fi derruba o modem ao desconectar (`fatal error received` no `journalctl -k`). No kernel 7.2, aplique o patch de [`docs/wifi.md`](docs/wifi.md) |
+| Wi-Fi lento (cerca de 20 Mbit/s) com sinal bom | a rede usa PMF (WPA3) e o firmware não agrega quadros. No kernel 7.2, aplique o patch `0002` de [`docs/wifi.md`](docs/wifi.md) |
 | Sem som na caixa | confira `amixer -c0 cget name='PRI_MI2S_RX Audio Mixer MultiMedia1'` com a caixa ativa e reinicie o PulseAudio com `pulseaudio -k` (o servidor é o PulseAudio, não o PipeWire) |
 | Caixa muda depois de trocar de saída com algo tocando | o serviço `redmi-audio-reabrir` não está ativo (Etapa 9) |
 | `su` negado sem pedido na tela | adicione o `Shell` na aba SuperUsuário do Magisk |
@@ -470,10 +474,10 @@ O script copia os patches, aplica as mudanças dos `APKBUILD` e confere os hashe
 | [`docs/dual-boot.md`](docs/dual-boot.md) | Detalhes do dual boot, o incidente da `boot`, riscos e medições |
 | [`docs/audio.md`](docs/audio.md) | Caixa principal: o chip, o driver, o UCM e o serviço de troca de saída |
 | [`docs/gpu.md`](docs/gpu.md) | Freeze da GPU: sintoma, patches e teste |
-| [`docs/wifi.md`](docs/wifi.md) | Wi-Fi que não reconectava: sintoma, causa, patch do `ath10k` para o 7.2 e teste |
+| [`docs/wifi.md`](docs/wifi.md) | Wi-Fi que não reconectava e Wi-Fi lento em redes WPA3: sintomas, causas, patches do `ath10k` para o 7.2 e testes |
 | [`docs/kernel-7.2.md`](docs/kernel-7.2.md) | Kernel 7.2 do fork: o que muda, testes, como compilar e instalar ao lado do 7.0.14 |
 | [`kernel/`](kernel/) | `0001` driver da caixa e árvore do lavender; `0002` a `0004` patches da GPU |
-| [`kernel-7.2/`](kernel-7.2/) | `0001` patch do `ath10k` para o Wi-Fi, só para o kernel 7.2 (não entra no pacote do 7.0.14) |
+| [`kernel-7.2/`](kernel-7.2/) | Patches do `ath10k` para o Wi-Fi, só para o kernel 7.2 (não entram no pacote do 7.0.14): `0001` queda do modem ao desconectar, `0002` velocidade em redes com PMF |
 | [`ucm/`](ucm/) | Saída `Speaker` no `alsa-ucm-conf` do lavender |
 | [`pmaports/`](pmaports/) | Mudanças nos `APKBUILD` e na config do kernel do pmaports |
 | [`scripts/`](scripts/) | Serviço `redmi-audio-reabrir`, `/etc/deviceinfo` de proteção, teste de carga da GPU e, em `kernel-7.2/`, compilar e instalar o 7.2 |

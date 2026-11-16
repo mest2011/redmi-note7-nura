@@ -87,8 +87,9 @@ sudo alsactl store
 ## Wi-Fi no 7.2
 
 Sem patch, o firmware do Wi-Fi derruba o modem a cada desconexão, e a rede só volta desligando
-e ligando o Wi-Fi. A correção e os testes estão em [`wifi.md`](wifi.md). O patch fica em
-[`kernel-7.2/`](../kernel-7.2/) e não faz parte do kernel descrito em "Testado" acima.
+e ligando o Wi-Fi. Em redes WPA3 ou WPA2/WPA3 a velocidade fica em cerca de 20 Mbit/s. As
+correções e os testes estão em [`wifi.md`](wifi.md). Os patches ficam em
+[`kernel-7.2/`](../kernel-7.2/) e não fazem parte do kernel descrito em "Testado" acima.
 
 ## Como compilar
 

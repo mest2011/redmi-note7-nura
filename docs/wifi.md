@@ -82,6 +82,7 @@ Kernel `7.2.3-sdm660`, variante Shenchao, em 15/11/2026. "Queda" é uma linha
 | Desligar e ligar o Wi-Fi (`nmcli radio wifi off` e `on`) | 2 quedas em 2 | 0 quedas em 4; reconecta sozinho |
 | Andar pela casa, trocando entre os roteadores da malha (5 GHz e 2,4 GHz) | não repetido no 7.2.3; no `7.0.14`, 4 quedas em 16 s | 4 trocas, cada uma em menos de 1 s, 0 quedas, mesmo IP |
 | Uma noite ligado (14 h) | | 0 quedas, 0 desconexões |
+| Desligar o aparelho | o modem caiu nos 3 desligamentos conferidos | 1 desligamento, 0 quedas |
 
 O log do debug confirma que, com o patch, o `set param 45` não é mais enviado depois do
 `vdev down`.
@@ -161,11 +162,16 @@ ativo. TCP por 8 s em cada sentido, entre o celular e um computador da mesma red
 
 O ping foi medido com a economia de energia do Wi-Fi ligada, que é o padrão.
 
+Depois de reiniciar o aparelho, em 16/11/2026, o módulo com os dois patches carregou de
+`/lib/modules` no boot e o Wi-Fi associou em 5 GHz 22 s depois de ligar, com PMF e sem queda do
+modem. Duas medidas nesse boot: 239 e 240 Mbit/s de download, 216 e 193 de upload, ping com
+média de 13 a 14 ms e máximo de 21 a 23 ms.
+
 ## Não verificado
 
-Perda total de sinal (sair do alcance de todos os roteadores), um boot completo com o módulo
-novo, o kernel inteiro compilado com os patches (só o módulo foi compilado), rede só WPA2 sem
-PMF, a banda de 2,4 GHz depois do `0002`, outros firmwares do WCN3990 e o kernel `7.0.14`.
+Perda total de sinal (sair do alcance de todos os roteadores), o kernel inteiro compilado com
+os patches (só o módulo foi compilado), rede só WPA2 sem PMF, a banda de 2,4 GHz depois do
+`0002`, outros firmwares do WCN3990 e o kernel `7.0.14`.
 
 Os canais 100 a 144 de 5 GHz aparecem desativados: o rádio se apresenta com o domínio
 regulatório da China. Se o seu roteador usar um deles, a rede de 5 GHz não aparece. Isso não foi

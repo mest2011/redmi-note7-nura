@@ -1,0 +1,89 @@
+media: qcom: camss: vfe: count the power domain device link
+
+For the sdm660-mainline 7.2.y kernel (tested on v7.2.3-sdm660, Xiaomi Redmi
+Note 7 "lavender", Shenchao variant, 4 GB).
+
+On SDM660 the ISPIF reset sequence turns the VFE power domain on and off
+through vfe_pm_domain_on()/off(), which share vfe->genpd_link with the VFE
+itself. The inner off() deletes the link and clears the pointer, and the
+outer off() then dereferences NULL in device_link_put_kref() when a stream
+stops, which takes the kernel down. Count the links instead, and drop them
+all in msm_vfe_genpd_cleanup().
+
+Apply after 0003.
+---
+diff --git a/drivers/media/platform/qcom/camss/camss-vfe.c b/drivers/media/platform/qcom/camss/camss-vfe.c
+index 319d19158..cd3284154 100644
+--- a/drivers/media/platform/qcom/camss/camss-vfe.c
++++ b/drivers/media/platform/qcom/camss/camss-vfe.c
+@@ -878,11 +878,16 @@ void vfe_isr_reset_ack(struct vfe_device *vfe)
+  */
+ void vfe_pm_domain_off(struct vfe_device *vfe)
+ {
+-	if (!vfe->genpd)
++	if (!vfe->genpd || !vfe->genpd_link)
+ 		return;
+ 
++	/*
++	 * The link is shared with the ISPIF reset sequence, which powers the
++	 * VFE domains on and off while the VFE itself may hold them.
++	 */
+ 	device_link_del(vfe->genpd_link);
+-	vfe->genpd_link = NULL;
++	if (--vfe->genpd_link_count == 0)
++		vfe->genpd_link = NULL;
+ }
+ 
+ /*
+@@ -892,17 +897,21 @@ void vfe_pm_domain_off(struct vfe_device *vfe)
+ int vfe_pm_domain_on(struct vfe_device *vfe)
+ {
+ 	struct camss *camss = vfe->camss;
++	struct device_link *link;
+ 
+ 	if (!vfe->genpd)
+ 		return 0;
+ 
+-	vfe->genpd_link = device_link_add(camss->dev, vfe->genpd,
+-					  DL_FLAG_STATELESS |
+-					  DL_FLAG_PM_RUNTIME |
+-					  DL_FLAG_RPM_ACTIVE);
+-	if (!vfe->genpd_link)
++	link = device_link_add(camss->dev, vfe->genpd,
++			       DL_FLAG_STATELESS |
++			       DL_FLAG_PM_RUNTIME |
++			       DL_FLAG_RPM_ACTIVE);
++	if (!link)
+ 		return -EINVAL;
+ 
++	vfe->genpd_link = link;
++	vfe->genpd_link_count++;
++
+ 	return 0;
+ }
+ 
+@@ -1939,8 +1948,11 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
+  */
+ void msm_vfe_genpd_cleanup(struct vfe_device *vfe)
+ {
+-	if (vfe->genpd_link)
++	while (vfe->genpd_link_count) {
+ 		device_link_del(vfe->genpd_link);
++		vfe->genpd_link_count--;
++	}
++	vfe->genpd_link = NULL;
+ 
+ 	if (vfe->genpd)
+ 		dev_pm_domain_detach(vfe->genpd, true);
+diff --git a/drivers/media/platform/qcom/camss/camss-vfe.h b/drivers/media/platform/qcom/camss/camss-vfe.h
+index ae9dad353..77ad0a8ab 100644
+--- a/drivers/media/platform/qcom/camss/camss-vfe.h
++++ b/drivers/media/platform/qcom/camss/camss-vfe.h
+@@ -169,6 +169,7 @@ struct vfe_device {
+ 	struct camss_video_ops video_ops;
+ 	struct device *genpd;
+ 	struct device_link *genpd_link;
++	unsigned int genpd_link_count;
+ };
+ 
+ struct camss_subdev_resources;

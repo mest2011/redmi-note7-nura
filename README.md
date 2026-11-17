@@ -4,8 +4,9 @@ Patches, scripts e um tutorial completo para usar o Nura (ex-postmarketOS) no Re
 (lavender, Snapdragon 660) em dual boot com o MIUI. O MIUI continua ligando normal; o Nura
 sobe de um cartão SD quando você pede. Este repositório também corrige duas coisas que
 faltavam: a caixa de som principal, que ficava muda, e a interface, que congelava. Para o
-kernel 7.2 há ainda dois patches do Wi-Fi: o modem caía a cada desconexão, e a velocidade
-ficava em cerca de 20 Mbit/s em redes WPA3.
+kernel 7.2 há ainda dois patches do Wi-Fi, para o modem que caía a cada desconexão e para a
+velocidade de cerca de 20 Mbit/s em redes WPA3, e o que faz as três câmeras funcionarem, com
+autofoco na principal.
 
 Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a Xiaomi.
 
@@ -19,7 +20,12 @@ Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a 
 > patches: the WCN3990 firmware crashed the modem on every Wi-Fi disconnect (TXBF vdev param
 > written after `VDEV_DOWN`), and throughput was about 20 Mbit/s on PMF (WPA3) networks
 > because the PMF peer flag was never set, so no A-MPDU aggregation (17-24 to 233-242 Mbit/s
-> down). See [`docs/wifi.md`](docs/wifi.md) and [CREDITOS.md](CREDITOS.md).
+> down). The three cameras (S5KGM1 main, OV13855 front, S5K5E8 depth) work on 7.2.y too:
+> CAMSS fixes for SDM660 (ISPIF and CSIPHY clocks, a VFE power-domain NULL dereference),
+> generated sensor drivers, the lavender DT with the DW9800K focus actuator, and a libcamera
+> build with Milan Zamazal's software ISP autofocus RFC plus a focus measure for 10-bit packed
+> Bayer. See [`docs/wifi.md`](docs/wifi.md), [`docs/cameras.md`](docs/cameras.md) and
+> [CREDITOS.md](CREDITOS.md).
 
 ## Estado (novembro de 2026)
 
@@ -29,8 +35,9 @@ Projeto pessoal. Não tem ligação oficial com o Nura, o sdm660-mainline nem a 
 | Caixa principal (MAX98937) | toca e é a saída padrão: no 7.0.14 com o driver mínimo deste repositório, no 7.2 com o `max98927` |
 | Freeze da GPU (Adreno 512) | corrigido com 3 patches do fork: 30 min de carga sem erro |
 | Wi-Fi | conecta em 2,4 e 5 GHz. Sem os patches do 7.2, o modem cai a cada desconexão (a rede não volta sozinha) e a velocidade fica em cerca de 20 Mbit/s em redes WPA3; com eles, 0 quedas e 230 a 240 Mbit/s em 5 GHz: ver [`docs/wifi.md`](docs/wifi.md) |
+| Câmeras | no 7.2, as três funcionam (principal, frontal e profundidade), com autofoco na principal; sem toque para focar e sem flash: ver [`docs/cameras.md`](docs/cameras.md) |
 | Docker nativo | roda com overlayfs e cgroup v2 |
-| Sem suporte no Nura | dados móveis, chamadas, câmera, GPS e OTG |
+| Sem suporte no Nura | dados móveis, chamadas, GPS e OTG; câmera no 7.0.14 |
 
 Testado num aparelho só: variante Shenchao (painel NT36672A), 4 GB, MIUI 12.5.1
 (`V12.5.1.0.QFGMIXM`) com Magisk 31.1, U-Boot `v2026.10-sdm660`, Nura edge com Phosh,
@@ -475,12 +482,14 @@ O script copia os patches, aplica as mudanças dos `APKBUILD` e confere os hashe
 | [`docs/audio.md`](docs/audio.md) | Caixa principal: o chip, o driver, o UCM e o serviço de troca de saída |
 | [`docs/gpu.md`](docs/gpu.md) | Freeze da GPU: sintoma, patches e teste |
 | [`docs/wifi.md`](docs/wifi.md) | Wi-Fi que não reconectava e Wi-Fi lento em redes WPA3: sintomas, causas, patches do `ath10k` para o 7.2 e testes |
+| [`docs/cameras.md`](docs/cameras.md) | As três câmeras no 7.2: o que faltava, patches, `libcamera` com autofoco, como aplicar, testes e limites |
 | [`docs/kernel-7.2.md`](docs/kernel-7.2.md) | Kernel 7.2 do fork: o que muda, testes, como compilar e instalar ao lado do 7.0.14 |
 | [`kernel/`](kernel/) | `0001` driver da caixa e árvore do lavender; `0002` a `0004` patches da GPU |
-| [`kernel-7.2/`](kernel-7.2/) | Patches do `ath10k` para o Wi-Fi, só para o kernel 7.2 (não entram no pacote do 7.0.14): `0001` queda do modem ao desconectar, `0002` velocidade em redes com PMF |
+| [`kernel-7.2/`](kernel-7.2/) | Patches só para o kernel 7.2 (não entram no pacote do 7.0.14): `0001` e `0002` Wi-Fi (queda do modem, velocidade em redes com PMF); `0003` a `0007` câmeras; `cameras.config` com as opções |
+| [`libcamera/`](libcamera/) | Patches de autofoco do `libcamera` (série de Milan Zamazal e o `af-0011` deste repositório), mudança no `APKBUILD` do pmaports e ajustes do ISP por software dos três sensores |
 | [`ucm/`](ucm/) | Saída `Speaker` no `alsa-ucm-conf` do lavender |
 | [`pmaports/`](pmaports/) | Mudanças nos `APKBUILD` e na config do kernel do pmaports |
-| [`scripts/`](scripts/) | Serviço `redmi-audio-reabrir`, `/etc/deviceinfo` de proteção, teste de carga da GPU e, em `kernel-7.2/`, compilar e instalar o 7.2 |
+| [`scripts/`](scripts/) | Serviço `redmi-audio-reabrir`, `/etc/deviceinfo` de proteção, teste de carga da GPU; em `kernel-7.2/`, compilar e instalar o 7.2; em `cameras/`, gerar os drivers dos sensores, converter quadros brutos e medir a matriz de cor |
 | [`aplicar-no-pmaports.sh`](aplicar-no-pmaports.sh) | Copia os patches para um checkout do pmaports e confere os hashes |
 
 ## Uso de IA

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: CC0-1.0
+# Redmi Note 7 (lavender), sensor ov13855. Matriz provisória (média das outras duas, suavizada); falta medir.
+%YAML 1.1
+---
+version: 1
+algorithms:
+  - BlackLevel:
+      blackLevel: 4096
+  - Awb:
+  - Ccm:
+      ccms:
+        - ct: 6500
+          ccm: [ 1.8040, -0.6070, -0.1970, -0.2040, 1.6340, -0.4300, -0.0200, -0.5130, 1.5330 ]
+  - Adjust:
+  - Agc:
+      # Sem CameraSensorHelper para este sensor, o ganho fica no código do
+      # registrador. Primeiro sobe o ganho até 4x com 1/30 s; só depois
+      # alonga o quadro (1/15 s, 1/10 s).
+      AeExposureMode:
+        ExposureNormal:
+          exposureTime: [ 33333, 66666, 100000 ]
+          gain: [ 512, 1024, 1984 ]
+...

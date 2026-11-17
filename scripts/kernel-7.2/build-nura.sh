@@ -6,6 +6,8 @@
 # que não existe no checkout.
 set -eo pipefail
 KSRC=${KSRC:?defina KSRC com o checkout do sdm660-mainline/linux (branch do PR 262)}
+# Opcional: fragmento de config somado no fim (ex.: EXTRA_CONFIG=kernel-7.2/cameras.config)
+EXTRA_CONFIG=${EXTRA_CONFIG:+$(realpath "$EXTRA_CONFIG")}
 cd "$KSRC"
 T=${T:-$KSRC/../teste72}; O=${O:-$KSRC/../build-nura}; B=${B:-$KSRC/../build-def}
 # Em $T precisa estar config-7.0.14-nura (no celular: zcat /proc/config.gz).
@@ -23,6 +25,11 @@ while IFS== read -r k v; do
   if [ -z "$cur" ]; then ./scripts/config --file $O/.config --set-val "${k#CONFIG_}" "$v"; n=$((n+1)); echo "add $k=$v"; fi
 done < <(grep -E "^CONFIG_[A-Z0-9_]+=(y|m)$" $B/.config)
 ./scripts/config --file $O/.config -m SND_SOC_MAX98927 -m SND_SOC_MAX98937 -m SND_SOC_SM8250 -d LOCALVERSION_AUTO --set-str LOCALVERSION "-sdm660"
+if [ -n "$EXTRA_CONFIG" ]; then
+  while IFS== read -r k v; do
+    ./scripts/config --file $O/.config --set-val "${k#CONFIG_}" "$v"; echo "extra $k=$v"
+  done < <(grep -E "^CONFIG_[A-Z0-9_]+=" "$EXTRA_CONFIG")
+fi
 $M O=$O olddefconfig
 echo "opções somadas: $n"
 grep -E "^CONFIG_(SND_SOC_MAX989[23]7|SND_SOC_SM8250|LOCALVERSION|MMC_SDHCI_MSM|MODULE_COMPRESS_ZSTD|DRM_MSM)=" $O/.config

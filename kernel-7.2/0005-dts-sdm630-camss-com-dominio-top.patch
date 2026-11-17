@@ -1,0 +1,25 @@
+arm64: dts: qcom: sdm630: add CAMSS_TOP_GDSC to camss
+
+For the sdm660-mainline 7.2.y kernel (tested on v7.2.3-sdm660, Xiaomi Redmi
+Note 7 "lavender", Shenchao variant, 4 GB).
+
+Without the TOP power domain the camss_top_ahb clock does not start
+("camss_top_ahb_clk status stuck at 'off'") and the CCI cannot talk to the
+sensors.
+
+Apply after 0004.
+---
+diff --git a/arch/arm64/boot/dts/qcom/sdm630.dtsi b/arch/arm64/boot/dts/qcom/sdm630.dtsi
+index 35e33e793..22ed88acd 100644
+--- a/arch/arm64/boot/dts/qcom/sdm630.dtsi
++++ b/arch/arm64/boot/dts/qcom/sdm630.dtsi
+@@ -2110,7 +2110,8 @@ camss: camss@ca00020 {
+ 				 <&mmss_smmu 0xc02>,
+ 				 <&mmss_smmu 0xc03>;
+ 			power-domains = <&mmcc CAMSS_VFE0_GDSC>,
+-					<&mmcc CAMSS_VFE1_GDSC>;
++					<&mmcc CAMSS_VFE1_GDSC>,
++					<&mmcc CAMSS_TOP_GDSC>;
+ 			status = "disabled";
+ 
+ 			ports {

@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: CC0-1.0
+# Redmi Note 7 (lavender), sensor s5k5e8. Matriz medida com a carta de 24 cores na tela de um notebook (17/11/2026).
+%YAML 1.1
+---
+version: 1
+algorithms:
+  - BlackLevel:
+      blackLevel: 3968
+  - Awb:
+  - Ccm:
+      ccms:
+        - ct: 6500
+          ccm: [ 2.8411, -1.4829, -0.3582, -0.3982, 2.2467, -0.8484, -0.0441, -0.9680, 2.0120 ]
+  - Adjust:
+  - Agc:
+      # Sem CameraSensorHelper para este sensor, o ganho fica no código do
+      # registrador. Primeiro sobe o ganho até 4x com 1/30 s; só depois
+      # alonga o quadro (1/15 s, 1/10 s).
+      AeExposureMode:
+        ExposureNormal:
+          exposureTime: [ 33333, 66666, 100000 ]
+          gain: [ 128, 256, 512 ]
+...

@@ -1,0 +1,352 @@
+arm64: dts: qcom: sdm660-xiaomi-lavender: enable the cameras
+
+For the sdm660-mainline 7.2.y kernel (tested on v7.2.3-sdm660, Xiaomi Redmi
+Note 7 "lavender", Shenchao variant, 4 GB).
+
+Wiring taken from the MIUI device tree (boot.img):
+
+- main S5KGM1: CCI1 0x10, CSIPHY1, MCLK3, reset gpio52; DW9800K focus
+  actuator at CCI1 0x0c (init values from the vendor actuator library);
+- front OV13855: CCI1 0x36, CSIPHY2, MCLK1, reset gpio47, powerdown gpio45;
+- depth S5K5E8: CCI0 0x18, CSIPHY0, MCLK0, reset gpio48;
+- fixed regulators for AVDD (gpio62, gpio46), DVDD (pm660l gpio4, gpio3)
+  and VAF (gpio50).
+
+rotation is 360 minus the MIUI qcom,mount-angle (90 for the main camera,
+270 for the front one): with the MIUI values the picture is upside down.
+L11A is kept on because it also supplies the CCI pull-ups: without it the
+focus actuator times out whenever every sensor is off.
+
+The context is the lavender-common.dtsi of the lavender-max98937 branch;
+it also applies to qcom-sdm660-7.2.y.
+
+Apply after 0006.
+---
+diff --git a/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi b/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi
+index f98f12705..3755e25b4 100644
+--- a/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi
++++ b/arch/arm64/boot/dts/qcom/sdm660-xiaomi-lavender-common.dtsi
+@@ -554,6 +554,11 @@ vreg_l11a_1p8: l11 {
+ 			regulator-min-microvolt = <1780000>;
+ 			regulator-max-microvolt = <1950000>;
+ 			regulator-enable-ramp-delay = <250>;
++			/*
++			 * Camera I/O rail. It also supplies the pull-ups of the CCI
++			 * lines, so the focus actuator needs it with every sensor off.
++			 */
++			regulator-always-on;
+ 		};
+ 
+ 		vreg_l12a_1p8: l12 {
+@@ -795,3 +800,311 @@ &wifi {
+ 
+ 	status = "okay";
+ };
++
++/*
++ * Cameras. Wiring taken from the vendor device tree:
++ *   main  S5KGM1  CCI1 0x10, CSIPHY1, MCLK3 (gpio35), reset gpio52
++ *   front OV13855 CCI1 0x36, CSIPHY2, MCLK1 (gpio33), reset gpio47, pwdn gpio45
++ *   depth S5K5E8  CCI0 0x18, CSIPHY0, MCLK0 (gpio32), reset gpio48
++ */
++/ {
++	cam_avdd_main_2p8: regulator-cam-avdd-main {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_avdd_main_2p8";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		gpio = <&tlmm 62 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		startup-delay-us = <1000>;
++		vin-supply = <&vreg_bob>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_avdd_main_en>;
++	};
++
++	cam_avdd_aux_2p8: regulator-cam-avdd-aux {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_avdd_aux_2p8";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		gpio = <&tlmm 46 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		startup-delay-us = <1000>;
++		vin-supply = <&vreg_bob>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_avdd_aux_en>;
++	};
++
++	cam_dvdd_main_1p2: regulator-cam-dvdd-main {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_dvdd_main_1p2";
++		regulator-min-microvolt = <1200000>;
++		regulator-max-microvolt = <1200000>;
++		gpio = <&pm660l_gpios 4 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		startup-delay-us = <1000>;
++		vin-supply = <&vreg_s5a_1p35>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_dvdd_main_en>;
++	};
++
++	cam_dvdd_aux_1p2: regulator-cam-dvdd-aux {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_dvdd_aux_1p2";
++		regulator-min-microvolt = <1200000>;
++		regulator-max-microvolt = <1200000>;
++		gpio = <&pm660l_gpios 3 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		startup-delay-us = <1000>;
++		vin-supply = <&vreg_s5a_1p35>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_dvdd_aux_en>;
++	};
++
++	cam_vaf_2p8: regulator-cam-vaf {
++		compatible = "regulator-fixed";
++		regulator-name = "cam_vaf_2p8";
++		regulator-min-microvolt = <2800000>;
++		regulator-max-microvolt = <2800000>;
++		gpio = <&tlmm 50 GPIO_ACTIVE_HIGH>;
++		enable-active-high;
++		startup-delay-us = <1000>;
++		vin-supply = <&vreg_bob>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_vaf_en>;
++	};
++};
++
++&camss {
++	vdda-supply = <&vreg_l1a_1p225>;
++
++	status = "okay";
++
++	ports {
++		port@0 {
++			reg = <0>;
++
++			csiphy0_ep: endpoint {
++				clock-lanes = <7>;
++				data-lanes = <0 1>;
++				remote-endpoint = <&cam_depth_ep>;
++			};
++		};
++
++		port@1 {
++			reg = <1>;
++
++			csiphy1_ep: endpoint {
++				clock-lanes = <7>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&cam_main_ep>;
++			};
++		};
++
++		port@2 {
++			reg = <2>;
++
++			csiphy2_ep: endpoint {
++				clock-lanes = <7>;
++				data-lanes = <0 1 2 3>;
++				remote-endpoint = <&cam_front_ep>;
++			};
++		};
++	};
++};
++
++&cci {
++	status = "okay";
++};
++
++&cci_i2c0 {
++	camera@18 {
++		compatible = "samsung,s5k5e8";
++		reg = <0x18>;
++
++		clocks = <&mmcc CAMSS_MCLK0_CLK>;
++		assigned-clocks = <&mmcc CAMSS_MCLK0_CLK>;
++		assigned-clock-rates = <24000000>;
++
++		reset-gpios = <&tlmm 48 GPIO_ACTIVE_LOW>;
++
++		vdda-supply = <&cam_avdd_aux_2p8>;
++		vddd-supply = <&cam_dvdd_aux_1p2>;
++		vddio-supply = <&vreg_l11a_1p8>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_depth_default>;
++
++		orientation = <1>;
++		rotation = <270>;
++
++		port {
++			cam_depth_ep: endpoint {
++				data-lanes = <1 2>;
++				link-frequencies = /bits/ 64 <418000000>;
++				remote-endpoint = <&csiphy0_ep>;
++			};
++		};
++	};
++};
++
++&cci_i2c1 {
++	/* Focus actuator of the main camera (DW9800, init values from the vendor library) */
++	cam_main_vcm: actuator@c {
++		compatible = "dongwoon,dw9800k";
++		reg = <0x0c>;
++		vdd-supply = <&cam_vaf_2p8>;
++		dongwoon,vcm-prescale = <0x66>;
++	};
++
++	camera@10 {
++		compatible = "samsung,s5kgm1";
++		reg = <0x10>;
++
++		clocks = <&mmcc CAMSS_MCLK3_CLK>;
++		assigned-clocks = <&mmcc CAMSS_MCLK3_CLK>;
++		assigned-clock-rates = <24000000>;
++
++		reset-gpios = <&tlmm 52 GPIO_ACTIVE_LOW>;
++
++		vdda-supply = <&cam_avdd_main_2p8>;
++		vddd-supply = <&cam_dvdd_main_1p2>;
++		vddio-supply = <&vreg_l11a_1p8>;
++		afvdd-supply = <&cam_vaf_2p8>;
++		lens-focus = <&cam_main_vcm>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_main_default>;
++
++		orientation = <1>;
++		rotation = <270>;
++
++		port {
++			cam_main_ep: endpoint {
++				data-lanes = <1 2 3 4>;
++				link-frequencies = /bits/ 64 <576000000>;
++				remote-endpoint = <&csiphy1_ep>;
++			};
++		};
++	};
++
++	camera@36 {
++		compatible = "ovti,ov13855";
++		reg = <0x36>;
++
++		clocks = <&mmcc CAMSS_MCLK1_CLK>;
++		assigned-clocks = <&mmcc CAMSS_MCLK1_CLK>;
++		assigned-clock-rates = <24000000>;
++
++		reset-gpios = <&tlmm 47 GPIO_ACTIVE_LOW>;
++		powerdown-gpios = <&tlmm 45 GPIO_ACTIVE_LOW>;
++
++		avdd-supply = <&cam_avdd_aux_2p8>;
++		dvdd-supply = <&cam_dvdd_aux_1p2>;
++		dovdd-supply = <&vreg_l11a_1p8>;
++
++		pinctrl-names = "default";
++		pinctrl-0 = <&cam_front_default>;
++
++		orientation = <0>;
++		rotation = <90>;
++
++		port {
++			cam_front_ep: endpoint {
++				data-lanes = <1 2 3 4>;
++				link-frequencies = /bits/ 64 <556000000 276000000>;
++				remote-endpoint = <&csiphy2_ep>;
++			};
++		};
++	};
++};
++
++&pm660l_gpios {
++	cam_dvdd_aux_en: cam-dvdd-aux-en-state {
++		pins = "gpio3";
++		function = PMIC_GPIO_FUNC_NORMAL;
++		bias-disable;
++		output-low;
++		power-source = <0>;
++		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
++	};
++
++	cam_dvdd_main_en: cam-dvdd-main-en-state {
++		pins = "gpio4";
++		function = PMIC_GPIO_FUNC_NORMAL;
++		bias-disable;
++		output-low;
++		power-source = <0>;
++		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
++	};
++};
++
++&tlmm {
++	cam_avdd_main_en: cam-avdd-main-en-state {
++		pins = "gpio62";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	cam_avdd_aux_en: cam-avdd-aux-en-state {
++		pins = "gpio46";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	cam_vaf_en: cam-vaf-en-state {
++		pins = "gpio50";
++		function = "gpio";
++		drive-strength = <2>;
++		bias-disable;
++	};
++
++	cam_main_default: cam-main-default-state {
++		mclk-pins {
++			pins = "gpio35";
++			function = "cam_mclk";
++			drive-strength = <2>;
++			bias-disable;
++		};
++
++		reset-pins {
++			pins = "gpio52";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-disable;
++		};
++	};
++
++	cam_front_default: cam-front-default-state {
++		mclk-pins {
++			pins = "gpio33";
++			function = "cam_mclk";
++			drive-strength = <2>;
++			bias-disable;
++		};
++
++		ctrl-pins {
++			pins = "gpio45", "gpio47";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-disable;
++		};
++	};
++
++	cam_depth_default: cam-depth-default-state {
++		mclk-pins {
++			pins = "gpio32";
++			function = "cam_mclk";
++			drive-strength = <2>;
++			bias-disable;
++		};
++
++		reset-pins {
++			pins = "gpio48";
++			function = "gpio";
++			drive-strength = <2>;
++			bias-disable;
++		};
++	};
++};

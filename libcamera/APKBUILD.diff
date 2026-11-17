@@ -1,0 +1,45 @@
+diff --git a/temp/libcamera/APKBUILD b/temp/libcamera/APKBUILD
+index ad12cb0..5df16e4 100644
+--- a/temp/libcamera/APKBUILD
++++ b/temp/libcamera/APKBUILD
+@@ -3,7 +3,7 @@ maintainer="Robert Mader <robert.mader@collabora.com>"
+ pkgname=libcamera
+ _pkgver=0.8.0
+ pkgver=9999$_pkgver
+-pkgrel=1
++pkgrel=3
+ pkgdesc="Linux camera framework"
+ url="https://libcamera.org/"
+ arch="all"
+@@ -61,6 +61,15 @@ _tuning_files="
+ source="https://gitlab.freedesktop.org/camera/libcamera/-/archive/v$_pkgver/libcamera-v$_pkgver.tar.gz
+ 	0001-libcamera-software_isp-Allow-limiting-output-sizes.patch
+ 	0002-libcamera-Add-quad-Bayer-CFA-layout-support.patch
++	af-0003-libcamera-software_isp-Let-a-single-point-decide-abo.patch
++	af-0004-ipa-ipu3-Move-non-specific-parts-of-Af-to-libipa.patch
++	af-0005-ipa-libipa-Add-af-prepareControls.patch
++	af-0006-libcamera-software_isp-Add-variance-to-stats.patch
++	af-0007-ipa-softisp-Remove-unused-imports-from-ipa_context.h.patch
++	af-0008-ipa-softisp-Add-Af-algorithm.patch
++	af-0009-libcamera-software_isp-Add-autofocus-controls.patch
++	af-0010-ipa-libipa-Use-autofocus-limits-if-available.patch
++	af-0011-software_isp-focus-measure-10bit-packed.patch
+ 	qcam.desktop
+ 	$_tuning_files
+ 	"
+@@ -169,6 +178,15 @@ sha512sums="
+ 21ada092a1944c3476e0a254fe82d2775d2eb833d931dd051bd551a9f12ae596b3cd57f3792335d4ad86479e2247d23056d30e2631aa620897d067002c88e060  libcamera-v0.8.0.tar.gz
+ e255545cdc1d3d0e68fd40c504d2c2a24ec9a89de9e26842e05cc6046cf79615be87b0b9f80a3637b1f130c0404ff5e0f7df5136334b05c1d4e24e3290738223  0001-libcamera-software_isp-Allow-limiting-output-sizes.patch
+ 7918e3e2eed6ea6413936c30c88b752ba7c2da568c75236b2f5740e311b7b16fc6b4cc21413f4751af252843d0b98ad45ca41033e65686a9e9cdfa8d05f467c2  0002-libcamera-Add-quad-Bayer-CFA-layout-support.patch
++ac76eb2ccaa4025e8d163e77bcd7be181510069ea0e4e3e81b5a414893230b5bb61b5b7a5316208c6f28856cacb50ecdf70a8f2a53937e597e75651660afd3f6  af-0003-libcamera-software_isp-Let-a-single-point-decide-abo.patch
++ed936433bd2dad13a7894de477e3b22e4bf4a9126cf2d8c592cab6aa5c682ac017b3fe22f9d8140425bbb0a50dd2d22755d990ab968303abfe76690fc7637699  af-0004-ipa-ipu3-Move-non-specific-parts-of-Af-to-libipa.patch
++6080b24f37dfddf89a7175b542650a223ad50f72ed43d6e770ecbccfd2af2615017172a57dc26f33396700a9b1c9dd1ce8a9e643da58a734e30e21ceccb6e35a  af-0005-ipa-libipa-Add-af-prepareControls.patch
++f6de997b0f19e96992a59b5818193da6825ea4095da1dd1d698ccbc8904051ce099b17c3d08a87850e631fa164828859c38cfa9dfae75cfff547be1cee8bd554  af-0006-libcamera-software_isp-Add-variance-to-stats.patch
++3979eb402d6f8709ee84a77dfbce73bbfe580933c3978a1d5db778d81784d37c70a3de603e9e5fdd4f8ba84169d2a6350d8e1abacc60ac4d52322eaa88a5b906  af-0007-ipa-softisp-Remove-unused-imports-from-ipa_context.h.patch
++c70ab5dc497ffcda6ba2dc623f2f3795fa6817e22c91baa554367a5225f40ab0ca16c7f5055da7bf5e745064414278580c703d6a94f6f0cb2f43334ee056ff66  af-0008-ipa-softisp-Add-Af-algorithm.patch
++934ed22054c29d9347229f86fc465511ca1166f972a844b29c4c0922b8c7ff776d219444575803a103e1c5050bee9e383d4d75ba0bb689c444209cfe789a9508  af-0009-libcamera-software_isp-Add-autofocus-controls.patch
++fd6deb766e273e29cb0427c2dddc806b7feeb13ddf566041d5dfa7ff0ac6656c3d41eabb6baac95923987d749fe80bce8fe045ebda915b2143cc7daa062cfca6  af-0010-ipa-libipa-Use-autofocus-limits-if-available.patch
++49959bfaf4d26da3112361ed1d45a922702b0fcac37f4d0e6568fa1af5c2c1f91bf62519fd7c23abf5408226a8e6a792c7ea7721e88e705507f4347f1238d036  af-0011-software_isp-focus-measure-10bit-packed.patch
+ 22167a4eceb6d1b40b0b7c45fdf116c71684f5340de7f767535cb8e160ad9d2ae0f00cb3d461f73a344520a48a4641cf46226841d78bee06bfbfd2a91337f754  qcam.desktop
+ 926933ed5aa6bc005471d8ddbbf49afaeb5034ac776c78bcba6655adc05b68be858923aac7887f8a8451a424113ed4d11c78856229a728abf031ebe747684e14  hi846.yaml
+ 4942edd551dcf51630246f71e600c17760d3574d5d45e5530d6cfeefe2c9ab1a812fbe220f8e89d92e19a499c592b2507c801ca4eb74cd15fcecb60bff5c650b  imx355.yaml

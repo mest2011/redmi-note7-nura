@@ -1,0 +1,73 @@
+media: qcom: camss: SDM660: create the ISPIF and clock the CSIPHYs
+
+For the sdm660-mainline 7.2.y kernel (tested on v7.2.3-sdm660, Xiaomi Redmi
+Note 7 "lavender", Shenchao variant, 4 GB).
+
+Three gaps keep CAMSS_660 from delivering frames:
+
+- camss.c allocates the ISPIF only for 8x16/8x39/8x53/8x96, so on SDM660
+  the CSID output is never routed to a VFE ("VFE sof timeout", even with
+  the CSID test pattern).
+- camss-csiphy.c maps the CSIPHY clock mux (base_clk_mux) only for the same
+  list.
+- csiphy_res_660 has no rate for the csiN_phy clock, so csiphy_clk_src stays
+  at 19.2 MHz and only the first lines of each frame arrive. The rates
+  100/200/269.33 MHz are the ones the clock driver offers.
+
+Apply after 0002, with: git apply kernel-7.2/0003-camss-sdm660-ispif-mux-e-clock-do-csiphy.patch
+---
+diff --git a/drivers/media/platform/qcom/camss/camss-csiphy.c b/drivers/media/platform/qcom/camss/camss-csiphy.c
+index 539ac4888..367a18015 100644
+--- a/drivers/media/platform/qcom/camss/camss-csiphy.c
++++ b/drivers/media/platform/qcom/camss/camss-csiphy.c
+@@ -606,7 +606,8 @@ int msm_csiphy_subdev_init(struct camss *camss,
+ 	if (camss->res->version == CAMSS_8x16 ||
+ 	    camss->res->version == CAMSS_8x39 ||
+ 	    camss->res->version == CAMSS_8x53 ||
+-	    camss->res->version == CAMSS_8x96) {
++	    camss->res->version == CAMSS_8x96 ||
++	    camss->res->version == CAMSS_660) {
+ 		csiphy->base_clk_mux =
+ 			devm_platform_ioremap_resource_byname(pdev, res->reg[1]);
+ 		if (IS_ERR(csiphy->base_clk_mux))
+diff --git a/drivers/media/platform/qcom/camss/camss.c b/drivers/media/platform/qcom/camss/camss.c
+index 2123f6388..47e107de7 100644
+--- a/drivers/media/platform/qcom/camss/camss.c
++++ b/drivers/media/platform/qcom/camss/camss.c
+@@ -830,7 +830,7 @@ static const struct camss_subdev_resources csiphy_res_660[] = {
+ 				{ 0 },
+ 				{ 0 },
+ 				{ 100000000, 200000000, 269333333 },
+-				{ 0 } },
++				{ 100000000, 200000000, 269333333 } },
+ 		.reg = { "csiphy0", "csiphy0_clk_mux" },
+ 		.interrupt = { "csiphy0" },
+ 		.csiphy = {
+@@ -849,7 +849,7 @@ static const struct camss_subdev_resources csiphy_res_660[] = {
+ 				{ 0 },
+ 				{ 0 },
+ 				{ 100000000, 200000000, 269333333 },
+-				{ 0 } },
++				{ 100000000, 200000000, 269333333 } },
+ 		.reg = { "csiphy1", "csiphy1_clk_mux" },
+ 		.interrupt = { "csiphy1" },
+ 		.csiphy = {
+@@ -868,7 +868,7 @@ static const struct camss_subdev_resources csiphy_res_660[] = {
+ 				{ 0 },
+ 				{ 0 },
+ 				{ 100000000, 200000000, 269333333 },
+-				{ 0 } },
++				{ 100000000, 200000000, 269333333 } },
+ 		.reg = { "csiphy2", "csiphy2_clk_mux" },
+ 		.interrupt = { "csiphy2" },
+ 		.csiphy = {
+@@ -5388,7 +5388,8 @@ static int camss_probe(struct platform_device *pdev)
+ 	if (camss->res->version == CAMSS_8x16 ||
+ 	    camss->res->version == CAMSS_8x39 ||
+ 	    camss->res->version == CAMSS_8x53 ||
+-	    camss->res->version == CAMSS_8x96) {
++	    camss->res->version == CAMSS_8x96 ||
++	    camss->res->version == CAMSS_660) {
+ 		camss->ispif = devm_kcalloc(dev, 1, sizeof(*camss->ispif), GFP_KERNEL);
+ 		if (!camss->ispif)
+ 			return -ENOMEM;

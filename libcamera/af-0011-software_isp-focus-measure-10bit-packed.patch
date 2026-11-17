@@ -1,0 +1,108 @@
+From 732a759a3e80044b52a388395ce5f64cd3d066cf Mon Sep 17 00:00:00 2001
+From: mest2011 <32694103+mest2011@users.noreply.github.com>
+Date: Tue, 17 Nov 2026 08:08:29 -0300
+Subject: [PATCH] software_isp: Compute a focus measure for 10-bit packed Bayer
+
+The Af algorithm reads SwIspStats::variance, which nothing filled in, so
+it scanned the lens range on a constant 0 and stopped near the far end.
+
+Accumulate the squared difference between the green values of two 2x2
+blocks 2 pixels apart, in the central half of each sampled line, and
+normalise the frame sum by the squared mean green level so that exposure
+changes during a scan do not read as focus changes.
+
+Tested on a Xiaomi Redmi Note 7 (S5KGM1 with a DW9800K VCM).
+---
+ src/libcamera/software_isp/swstats_cpu.cpp | 33 ++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/src/libcamera/software_isp/swstats_cpu.cpp b/src/libcamera/software_isp/swstats_cpu.cpp
+index 3f68f1d3..83681365 100644
+--- a/src/libcamera/software_isp/swstats_cpu.cpp
++++ b/src/libcamera/software_isp/swstats_cpu.cpp
+@@ -204,6 +204,18 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
+ 	yVal += b * kBlueYMul;                  \
+ 	stats.yHistogram[yVal * SwIspStats::kYHistogramSize / (256 * 256 * (div))]++;
+ 
++/*
++ * Focus measure: squared difference between the green values of two 2x2
++ * blocks 2 pixels apart, in the central half of the line. The sum is
++ * normalised by the mean green level in finishFrame(), so that exposure
++ * changes during a scan do not look like focus changes.
++ */
++#define SWSTATS_ACCUMULATE_FOCUS(gA, gB)                             \
++	if (x >= focusStart && x < focusEnd) {                       \
++		int d = static_cast<int>(gA) - static_cast<int>(gB); \
++		focusSum += static_cast<uint64_t>(d * d);            \
++	}
++
+ #define SWSTATS_FINISH_LINE_STATS() \
+ 	stats.sum_.r() += sumR;     \
+ 	stats.sum_.g() += sumG;     \
+@@ -298,6 +310,10 @@ void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src[], SwIspStats &stats)
+ 
+ 	SWSTATS_START_LINE_STATS(uint8_t)
+ 
++	const unsigned int focusStart = widthInBytes / 4;
++	const unsigned int focusEnd = widthInBytes * 3 / 4;
++	uint64_t focusSum = 0;
++
+ 	/* x += 5 sample every other 2x2 block */
+ 	for (unsigned int x = 0; x < widthInBytes; x += 5) {
+ 		/* BGGR */
+@@ -306,10 +322,12 @@ void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src[], SwIspStats &stats)
+ 		g2 = src1[x];
+ 		r = src1[x + 1];
+ 		g = (g + g2) / 2;
++		SWSTATS_ACCUMULATE_FOCUS(g, (src0[x + 3] + src1[x + 2]) / 2)
+ 		/* Data is already 8 bits, divide by 1 */
+ 		SWSTATS_ACCUMULATE_LINE_STATS(1)
+ 	}
+ 
++	stats.variance += focusSum;
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
+@@ -324,6 +342,10 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[], SwIspStats &stats)
+ 
+ 	SWSTATS_START_LINE_STATS(uint8_t)
+ 
++	const unsigned int focusStart = widthInBytes / 4;
++	const unsigned int focusEnd = widthInBytes * 3 / 4;
++	uint64_t focusSum = 0;
++
+ 	/* x += 5 sample every other 2x2 block */
+ 	for (unsigned int x = 0; x < widthInBytes; x += 5) {
+ 		/* GBRG */
+@@ -332,10 +354,12 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[], SwIspStats &stats)
+ 		r = src1[x];
+ 		g2 = src1[x + 1];
+ 		g = (g + g2) / 2;
++		SWSTATS_ACCUMULATE_FOCUS(g, (src0[x + 2] + src1[x + 3]) / 2)
+ 		/* Data is already 8 bits, divide by 1 */
+ 		SWSTATS_ACCUMULATE_LINE_STATS(1)
+ 	}
+ 
++	stats.variance += focusSum;
+ 	SWSTATS_FINISH_LINE_STATS()
+ }
+ 
+@@ -466,6 +490,15 @@ void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
+ 		}
+ 
+ 		sharedStats_->sum_ >>= sumShift_;
++
++		/* Normalise the focus measure by the squared mean green level. */
++		if (sharedStats_->numPixels_ && sharedStats_->sum_.g()) {
++			double meanG = static_cast<double>(sharedStats_->sum_.g()) /
++				       sharedStats_->numPixels_;
++			sharedStats_->variance = sharedStats_->variance * 1000.0 /
++						 sharedStats_->numPixels_ /
++						 (meanG * meanG);
++		}
+ 	}
+ 
+ 	sharedStats_->valid = valid;
+-- 
+2.43.0
+
